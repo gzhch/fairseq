@@ -113,6 +113,7 @@ class FairseqOptimizer(object):
 
     def step(self, closure=None, scale=1.0, groups=None):
         """Performs a single optimization step."""
+        # self.mask_grad()
         if self.supports_step_with_scale:
             if self.supports_groups:
                 self.optimizer.step(closure, scale=scale, groups=groups)
@@ -125,6 +126,12 @@ class FairseqOptimizer(object):
                 self.optimizer.step(closure, groups=groups)
             else:
                 self.optimizer.step(closure)
+    
+    # def mask_grad(self):
+    #     # for p in self.params:
+    #     #     print(p.grad)
+    #     for param_group in self.param_groups:
+    #         print(param_group)
 
     def zero_grad(self):
         """Clears the gradients of all optimized parameters."""

@@ -271,12 +271,29 @@ class Trainer(object):
         return self._lr_scheduler
 
     def _build_optimizer(self):
-        params = list(
-            filter(
-                lambda p: p.requires_grad,
-                chain(self.model.parameters(), self.criterion.parameters()),
+        #if self.cfg.optimization.train_bias:
+        if False:
+            # Only update the bias terms
+
+            def check_param(n, p):
+                print(n)
+                if not p.requires_grad:
+                    return False
+                if n.endswith('bias') or n.startswith('classification_heads'):
+                    return True
+            params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
+            params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
+
+        # for n, p in self.model.named_parameters():
+        #     if p.requires_grad:
+        #         print(n)
+        else:
+            params = list(
+                filter(
+                    lambda p: p.requires_grad,
+                    chain(self.model.parameters(), self.criterion.parameters()),
+                )
             )
-        )
 
         if (
             self.cfg.distributed_training.ddp_backend == "fully_sharded"

@@ -14,6 +14,7 @@ from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor, nn
 from torch.nn import Parameter
+from fairseq.modules.random_finetune_linear import RFTLinear
 
 
 @with_incremental_state
@@ -37,6 +38,7 @@ class MultiheadAttention(nn.Module):
         encoder_decoder_attention=False,
         q_noise=0.0,
         qn_block_size=8,
+        random_ft=True
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -48,6 +50,8 @@ class MultiheadAttention(nn.Module):
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
         )
+
+        self.rft = random_ft
 
         self.head_dim = embed_dim // num_heads
         assert (
@@ -61,20 +65,35 @@ class MultiheadAttention(nn.Module):
         assert not self.self_attention or self.qkv_same_dim, (
             "Self-attention requires query, key and " "value to be of the same size"
         )
+        if self.rft:
+            self.k_proj = quant_noise(
+                RFTLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                RFTLinear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                RFTLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
 
-        self.k_proj = quant_noise(
-            nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
-        )
-        self.v_proj = quant_noise(
-            nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
-        )
-        self.q_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
-        )
+            self.out_proj = quant_noise(
+                RFTLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
 
-        self.out_proj = quant_noise(
-            nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
-        )
+        else:
+            self.k_proj = quant_noise(
+                nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+
+            self.out_proj = quant_noise(
+                nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
 
         if add_bias_kv:
             self.bias_k = Parameter(torch.Tensor(1, 1, embed_dim))
@@ -92,20 +111,33 @@ class MultiheadAttention(nn.Module):
         self.onnx_trace = True
 
     def reset_parameters(self):
-        if self.qkv_same_dim:
-            # Empirically observed the convergence to be much better with
-            # the scaled initialization
+        if self.rft:
             nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.v_proj.weight, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
-        else:
-            nn.init.xavier_uniform_(self.k_proj.weight)
-            nn.init.xavier_uniform_(self.v_proj.weight)
-            nn.init.xavier_uniform_(self.q_proj.weight)
-
-        nn.init.xavier_uniform_(self.out_proj.weight)
-        if self.out_proj.bias is not None:
+            nn.init.xavier_uniform_(self.k_proj.weight_upd, gain=1 / math.sqrt(2))
+            nn.init.xavier_uniform_(self.v_proj.weight_upd, gain=1 / math.sqrt(2))
+            nn.init.xavier_uniform_(self.q_proj.weight_upd, gain=1 / math.sqrt(2))
+            nn.init.xavier_uniform_(self.out_proj.weight)
+            nn.init.xavier_uniform_(self.out_proj.weight_upd)
             nn.init.constant_(self.out_proj.bias, 0.0)
+            nn.init.constant_(self.out_proj.bias_upd, 0.0)
+
+        else:
+            if self.qkv_same_dim:
+                # Empirically observed the convergence to be much better with
+                # the scaled initialization
+                nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
+                nn.init.xavier_uniform_(self.v_proj.weight, gain=1 / math.sqrt(2))
+                nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
+            else:
+                nn.init.xavier_uniform_(self.k_proj.weight)
+                nn.init.xavier_uniform_(self.v_proj.weight)
+                nn.init.xavier_uniform_(self.q_proj.weight)
+            nn.init.xavier_uniform_(self.out_proj.weight)
+
+            if self.out_proj.bias is not None:
+                nn.init.constant_(self.out_proj.bias, 0.0)
         if self.bias_k is not None:
             nn.init.xavier_normal_(self.bias_k)
         if self.bias_v is not None:
@@ -165,6 +197,8 @@ class MultiheadAttention(nn.Module):
             # A workaround for quantization to work. Otherwise JIT compilation
             # treats bias in linear module as method.
             and not torch.jit.is_scripting()
+            # disable Pytorch version of MAT
+            and False
         ):
             assert key is not None and value is not None
             return F.multi_head_attention_forward(
@@ -492,6 +526,20 @@ class MultiheadAttention(nn.Module):
                     items_to_add[prefix + "v_proj.bias"] = state_dict[k_bias][2 * dim :]
 
                     keys_to_remove.append(prefix + "in_proj_bias")
+
+                if self.rft:
+                    items_to_add[prefix + "q_proj.weight_upd"] = state_dict[k][:dim]
+                    items_to_add[prefix + "k_proj.weight_upd"] = state_dict[k][dim : 2 * dim]
+                    items_to_add[prefix + "v_proj.weight_upd"] = state_dict[k][2 * dim :]
+                    if k_bias in state_dict.keys():
+                        items_to_add[prefix + "q_proj.bias_upd"] = state_dict[k_bias][:dim]
+                        items_to_add[prefix + "k_proj.bias_upd"] = state_dict[k_bias][dim : 2 * dim]
+                        items_to_add[prefix + "v_proj.bias_upd"] = state_dict[k_bias][2 * dim :]
+            elif self.rft and k.endswith(prefix + "out_proj.weight"):
+                items_to_add[prefix + "out_proj.weight_upd"] = state_dict[k]
+                items_to_add[prefix + "out_proj.bias_upd"] = state_dict[prefix + "out_proj.bias"]
+                
+
 
         for k in keys_to_remove:
             del state_dict[k]

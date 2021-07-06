@@ -558,6 +558,12 @@ class OptimizationConfig(FairseqDataclass):
             "help": "specify global optimizer for syncing models on different GPUs/shards"
         },
     )
+    train_bias: bool = field(
+        default=False,
+        metadata={
+            "help": "only update the bias term during fine-tuning"
+        },
+    )
 
 
 @dataclass
