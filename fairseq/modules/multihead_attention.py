@@ -38,7 +38,8 @@ class MultiheadAttention(nn.Module):
         encoder_decoder_attention=False,
         q_noise=0.0,
         qn_block_size=8,
-        random_ft=0.001
+        random_ft=0.001,
+        mask_type=2
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -52,6 +53,7 @@ class MultiheadAttention(nn.Module):
         )
 
         self.rft = random_ft
+        self.mask_type = mask_type
 
         self.head_dim = embed_dim // num_heads
         assert (
@@ -67,17 +69,17 @@ class MultiheadAttention(nn.Module):
         )
         if self.rft > 0:
             self.k_proj = quant_noise(
-                RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
+                RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type), q_noise, qn_block_size
             )
             self.v_proj = quant_noise(
-                RFTLinear(self.vdim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
+                RFTLinear(self.vdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type), q_noise, qn_block_size
             )
             self.q_proj = quant_noise(
-                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
+                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type), q_noise, qn_block_size
             )
 
             self.out_proj = quant_noise(
-                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
+                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type), q_noise, qn_block_size
             )
 
         else:

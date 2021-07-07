@@ -33,6 +33,7 @@ class TransformerEncoderLayer(nn.Module):
         super().__init__()
         self.args = args
         self.rft = getattr(args, "random_ft", -2) # temporary DEBUG
+        self.mask_type = getattr(args, "mask_type", -1)
         self.embed_dim = args.encoder_embed_dim
         self.quant_noise = getattr(args, "quant_noise_pq", 0)
         self.quant_noise_block_size = getattr(args, "quant_noise_pq_block_size", 8) or 8
@@ -71,7 +72,7 @@ class TransformerEncoderLayer(nn.Module):
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         if self.rft > 0:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft), p=q_noise, block_size=qn_block_size
+                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
@@ -80,7 +81,7 @@ class TransformerEncoderLayer(nn.Module):
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
         if self.rft > 0:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft), p=q_noise, block_size=qn_block_size
+                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
@@ -94,7 +95,8 @@ class TransformerEncoderLayer(nn.Module):
             self_attention=True,
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
-            random_ft=self.rft
+            random_ft=self.rft,
+            mask_type=self.mask_type
         )
 
     def residual_connection(self, x, residual):

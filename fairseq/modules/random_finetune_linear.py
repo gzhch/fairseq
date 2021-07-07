@@ -12,14 +12,19 @@ class RFTLinear(nn.Module):
     out_features: int
     weight: Tensor
 
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, prob: float = 0.005) -> None:
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, prob: float = 0.005, mask_type: int = 1) -> None:
         super(RFTLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.p = prob
+        self.mask_type = mask_type
 
-        self.th_w = torch.rand([in_features], requires_grad=False).cuda()
-        self.th_b = torch.rand([1], requires_grad=False).cuda()
+        if self.mask_type == 1:
+            self.th_w = torch.rand([in_features], requires_grad=False).cuda()
+            self.th_b = torch.rand([1], requires_grad=False).cuda()
+        elif self.mask_type == 2:
+            self.th_w = torch.rand([out_features, in_features], requires_grad=False).cuda()
+            self.th_b = torch.rand([out_features], requires_grad=False).cuda()
 
         self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
         self.weight_upd = Parameter(torch.Tensor(out_features, in_features), requires_grad=True)

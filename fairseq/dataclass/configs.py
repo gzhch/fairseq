@@ -987,6 +987,12 @@ class ModelConfig(FairseqDataclass):
             "help": "random finetune probability"
         }
     )
+    mask_type: float = field(
+        default=2,
+        metadata={
+            "help": "1: column-wise, 2: element-wise"
+        }
+    )
 
 
 @dataclass
