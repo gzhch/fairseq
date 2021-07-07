@@ -38,7 +38,7 @@ class MultiheadAttention(nn.Module):
         encoder_decoder_attention=False,
         q_noise=0.0,
         qn_block_size=8,
-        random_ft=True
+        random_ft=0.001
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -65,19 +65,19 @@ class MultiheadAttention(nn.Module):
         assert not self.self_attention or self.qkv_same_dim, (
             "Self-attention requires query, key and " "value to be of the same size"
         )
-        if self.rft:
+        if self.rft > 0:
             self.k_proj = quant_noise(
-                RFTLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+                RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
             )
             self.v_proj = quant_noise(
-                RFTLinear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+                RFTLinear(self.vdim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
             )
             self.q_proj = quant_noise(
-                RFTLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
             )
 
             self.out_proj = quant_noise(
-                RFTLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft), q_noise, qn_block_size
             )
 
         else:

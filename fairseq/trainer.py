@@ -271,8 +271,8 @@ class Trainer(object):
         return self._lr_scheduler
 
     def _build_optimizer(self):
-        #if self.cfg.optimization.train_bias:
-        if False:
+        if self.cfg.optimization.train_bias:
+        #if False:
             # Only update the bias terms
 
             def check_param(n, p):

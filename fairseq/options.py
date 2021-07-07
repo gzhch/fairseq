@@ -20,6 +20,7 @@ from fairseq.dataclass.configs import (
     GenerationConfig,
     InteractiveConfig,
     OptimizationConfig,
+    ModelConfig
 )
 from fairseq.dataclass.utils import gen_parser_from_dataclass
 
@@ -358,6 +359,9 @@ def add_model_args(parser):
     # 1) model defaults (lowest priority)
     # 2) --arch argument
     # 3) --encoder/decoder-* arguments (highest priority)
+    group =  parser.add_argument_group("model")
+    add_common_eval_args(group)
+    gen_parser_from_dataclass(group, ModelConfig())
     from fairseq.models import ARCH_MODEL_REGISTRY
     group.add_argument('--arch', '-a', metavar='ARCH',
                        choices=ARCH_MODEL_REGISTRY.keys(),

@@ -564,6 +564,12 @@ class OptimizationConfig(FairseqDataclass):
             "help": "only update the bias term during fine-tuning"
         },
     )
+    rft_rate: float = field(
+        default=0,
+        metadata={
+            "help": "random finetune rate"
+        },
+    )
 
 
 @dataclass
@@ -973,6 +979,15 @@ class InteractiveConfig(FairseqDataclass):
         default="-", metadata={"help": "file to read from; use - for stdin"},
     )
 
+@dataclass
+class ModelConfig(FairseqDataclass):
+    random_ft: float = field(
+        default=0,
+        metadata={
+            "help": "random finetune probability"
+        }
+    )
+
 
 @dataclass
 class FairseqConfig(FairseqDataclass):
@@ -986,6 +1001,7 @@ class FairseqConfig(FairseqDataclass):
     generation: GenerationConfig = GenerationConfig()
     eval_lm: EvalLMConfig = EvalLMConfig()
     interactive: InteractiveConfig = InteractiveConfig()
+    # model: ModelConfig = ModelConfig()
     model: Any = MISSING
     task: Any = None
     criterion: Any = None

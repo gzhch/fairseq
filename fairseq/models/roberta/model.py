@@ -551,6 +551,10 @@ def base_architecture(args):
         args, "spectral_norm_classification_head", False
     )
 
+    # Random FT
+    args.random_ft = getattr(args, "random_ft", -1)
+
+
 
 @register_model_architecture("roberta", "roberta_prenorm")
 def roberta_prenorm_architecture(args):

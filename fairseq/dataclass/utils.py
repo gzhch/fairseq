@@ -358,7 +358,6 @@ def convert_namespace_to_omegaconf(args: Namespace) -> DictConfig:
         except:
             logger.error("Error when composing. Overrides: " + str(overrides))
             raise
-
         for k in deletes:
             composed_cfg[k] = None
 
