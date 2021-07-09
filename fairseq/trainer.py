@@ -288,12 +288,13 @@ class Trainer(object):
         #     if p.requires_grad:
         #         print(n)
         else:
-            params = list(
-                filter(
-                    lambda p: p.requires_grad,
-                    chain(self.model.parameters(), self.criterion.parameters()),
-                )
-            )
+            def check_param(n, p):
+                if not p.requires_grad or n.find('embed') != -1:
+                    return False
+                return True
+            
+            params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
+            params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
 
         if (
             self.cfg.distributed_training.ddp_backend == "fully_sharded"
