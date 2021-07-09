@@ -14,7 +14,7 @@ from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor, nn
 from torch.nn import Parameter
-from fairseq.modules.random_finetune_linear import RFTLinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear
 
 
 @with_incremental_state
@@ -81,7 +81,20 @@ class MultiheadAttention(nn.Module):
             self.out_proj = quant_noise(
                 RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type), q_noise, qn_block_size
             )
+        elif self.rft == -1:
+            self.k_proj = quant_noise(
+                NogradLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                NogradLinear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                NogradLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
 
+            self.out_proj = quant_noise(
+                NogradLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
         else:
             self.k_proj = quant_noise(
                 nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
@@ -113,7 +126,7 @@ class MultiheadAttention(nn.Module):
         self.onnx_trace = True
 
     def reset_parameters(self):
-        if self.rft:
+        if self.rft > 0:
             nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.v_proj.weight, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
@@ -529,7 +542,7 @@ class MultiheadAttention(nn.Module):
 
                     keys_to_remove.append(prefix + "in_proj_bias")
 
-                if self.rft:
+                if self.rft > 0:
                     items_to_add[prefix + "q_proj.weight_upd"] = state_dict[k][:dim]
                     items_to_add[prefix + "k_proj.weight_upd"] = state_dict[k][dim : 2 * dim]
                     items_to_add[prefix + "v_proj.weight_upd"] = state_dict[k][2 * dim :]
@@ -537,7 +550,7 @@ class MultiheadAttention(nn.Module):
                         items_to_add[prefix + "q_proj.bias_upd"] = state_dict[k_bias][:dim]
                         items_to_add[prefix + "k_proj.bias_upd"] = state_dict[k_bias][dim : 2 * dim]
                         items_to_add[prefix + "v_proj.bias_upd"] = state_dict[k_bias][2 * dim :]
-            elif self.rft and k.endswith(prefix + "out_proj.weight"):
+            elif self.rft > 0 and k.endswith(prefix + "out_proj.weight"):
                 items_to_add[prefix + "out_proj.weight_upd"] = state_dict[k]
                 items_to_add[prefix + "out_proj.bias_upd"] = state_dict[prefix + "out_proj.bias"]
                 

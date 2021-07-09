@@ -13,7 +13,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from fairseq.modules.random_finetune_linear import RFTLinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear
 
 class TransformerEncoderLayer(nn.Module):
     """Encoder layer block.
@@ -40,7 +40,8 @@ class TransformerEncoderLayer(nn.Module):
         self.mask_type = getattr(args, "mask_type", -1)
         self.ft_layer = getattr(args, "ft_layer", [])
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
-            self.rft = 0
+            if self.rft > 0:
+                self.rft = -1
 
 
         self.embed_dim = args.encoder_embed_dim
@@ -83,6 +84,10 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
             )
+        elif self.rft == -1:
+            return quant_noise(
+                NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
@@ -91,6 +96,10 @@ class TransformerEncoderLayer(nn.Module):
         if self.rft > 0:
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
+            )
+        elif self.rft == -1:
+            return quant_noise(
+                NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
@@ -128,7 +137,7 @@ class TransformerEncoderLayer(nn.Module):
         Add support for RFT:
         + fc1.weight_upd ...
         """
-        if self.rft:
+        if self.rft > 0:
             prefix = name + "." if name != "" else ""
             state_dict[prefix + "fc1.weight_upd"] = state_dict[prefix + "fc1.weight"]
             state_dict[prefix + "fc2.weight_upd"] = state_dict[prefix + "fc2.weight"]
