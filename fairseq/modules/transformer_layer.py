@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from logging import getLogRecordFactory
 from typing import Dict, List, Optional
 
 import torch
@@ -29,11 +30,19 @@ class TransformerEncoderLayer(nn.Module):
         args (argparse.Namespace): parsed command-line arguments
     """
 
-    def __init__(self, args):
+    def __init__(self, args, layer_id=-1):
         super().__init__()
         self.args = args
+
+        self.layer_id = layer_id
+        self.max_layer = getattr(args, "encoder_layers", -1)
         self.rft = getattr(args, "random_ft", -2) # temporary DEBUG
         self.mask_type = getattr(args, "mask_type", -1)
+        self.ft_layer = getattr(args, "ft_layer", [])
+        if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
+            self.rft = 0
+
+
         self.embed_dim = args.encoder_embed_dim
         self.quant_noise = getattr(args, "quant_noise_pq", 0)
         self.quant_noise_block_size = getattr(args, "quant_noise_pq_block_size", 8) or 8

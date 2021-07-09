@@ -553,6 +553,8 @@ def base_architecture(args):
 
     # Random FT
     args.random_ft = getattr(args, "random_ft", -1)
+    args.ft_layer = getattr(args, "ft_layer", [])
+    
 
 
 

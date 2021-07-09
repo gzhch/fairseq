@@ -993,7 +993,13 @@ class ModelConfig(FairseqDataclass):
             "help": "1: column-wise, 2: element-wise"
         }
     )
+    ft_layer: List[int] = field(
+        default_factory=lambda: [],
+        metadata={
+            "help": "which layers should be finetuned"
+        }
 
+    )
 
 @dataclass
 class FairseqConfig(FairseqDataclass):
