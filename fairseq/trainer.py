@@ -284,12 +284,17 @@ class Trainer(object):
             params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
             params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
 
-        # for n, p in self.model.named_parameters():
-        #     if p.requires_grad:
-        #         print(n)
+
         else:
             def check_param(n, p):
                 if not p.requires_grad or n.find('embed') != -1:
+                    #print(n)
+                    return False
+                if self.cfg.model.ft_layer != [] and n.find('layers.') != -1:
+                    for i in self.cfg.model.ft_layer:
+                        name = 'layers.' + str(i % 24) + '.'
+                        if n.find(name) != -1:
+                            return True
                     return False
                 return True
             
