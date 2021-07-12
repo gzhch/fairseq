@@ -287,8 +287,9 @@ class Trainer(object):
 
         else:
             def check_param(n, p):
-                if not p.requires_grad or n.find('embed') != -1:
-                    #print(n)
+                if not p.requires_grad:
+                    return False
+                if n.find('embed') != -1 and self.cfg.optimization.freeze_emb:
                     return False
                 if self.cfg.model.ft_layer != [] and n.find('layers.') != -1:
                     for i in self.cfg.model.ft_layer:
@@ -296,6 +297,7 @@ class Trainer(object):
                         if n.find(name) != -1:
                             return True
                     return False
+                #print(n)
                 return True
             
             params = list(p for n, p in self.model.named_parameters() if check_param(n, p))

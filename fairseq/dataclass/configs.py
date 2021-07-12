@@ -570,6 +570,12 @@ class OptimizationConfig(FairseqDataclass):
             "help": "random finetune rate"
         },
     )
+    freeze_emb: bool = field(
+        default=False,
+        metadata={
+            "help": "whether to freeze embedding during fine-tuning"
+        }
+    )
 
 
 @dataclass
