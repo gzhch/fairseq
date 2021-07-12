@@ -39,9 +39,11 @@ class TransformerEncoderLayer(nn.Module):
         self.rft = getattr(args, "random_ft", -2) # temporary DEBUG
         self.mask_type = getattr(args, "mask_type", -1)
         self.ft_layer = getattr(args, "ft_layer", [])
+        self.grad_dropout = getattr(args, "grad_dropout", False)
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
             if self.rft > 0:
                 self.rft = -1
+        
 
 
         self.embed_dim = args.encoder_embed_dim
@@ -82,7 +84,7 @@ class TransformerEncoderLayer(nn.Module):
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         if self.rft > 0:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
+                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
         elif self.rft == -1:
             return quant_noise(
@@ -95,7 +97,7 @@ class TransformerEncoderLayer(nn.Module):
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
         if self.rft > 0:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type), p=q_noise, block_size=qn_block_size
+                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
         elif self.rft == -1:
             return quant_noise(
@@ -114,7 +116,8 @@ class TransformerEncoderLayer(nn.Module):
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
             random_ft=self.rft,
-            mask_type=self.mask_type
+            mask_type=self.mask_type,
+            grad_dropout=self.grad_dropout
         )
 
     def residual_connection(self, x, residual):

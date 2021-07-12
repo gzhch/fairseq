@@ -998,7 +998,12 @@ class ModelConfig(FairseqDataclass):
         metadata={
             "help": "which layers should be finetuned"
         }
-
+    )
+    grad_dropout: bool = field(
+        default=False,
+        metadata={
+            "help": "if set True, then dynamically choose parameters to update in every forward() call"
+        }
     )
 
 @dataclass

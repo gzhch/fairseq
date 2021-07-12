@@ -554,6 +554,8 @@ def base_architecture(args):
     # Random FT
     args.random_ft = getattr(args, "random_ft", -1)
     args.ft_layer = getattr(args, "ft_layer", [])
+    args.mask_type = getattr(args, "mask_type", -1)
+    args.grad_dropout = getattr(args, "grad_dropout", False)
     
 
 

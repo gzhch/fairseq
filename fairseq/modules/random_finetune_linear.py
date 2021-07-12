@@ -12,11 +12,12 @@ class RFTLinear(nn.Module):
     out_features: int
     weight: Tensor
 
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, prob: float = 0.005, mask_type: int = 1) -> None:
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, prob: float = 0.005, mask_type: int = 1, dynamic: bool = False) -> None:
         super(RFTLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.p = prob
+        self.dynamic = dynamic
         self.mask_type = mask_type
 
         if self.mask_type == 1:
@@ -44,6 +45,9 @@ class RFTLinear(nn.Module):
             nn.init.uniform_(self.bias_upd, -bound, bound)
 
     def forward(self, input: Tensor) -> Tensor:
+        if self.dynamic:
+            self.th_w.uniform_()
+            self.th_b.uniform_()
         weight = self.weight * (self.th_w > self.p) + self.weight_upd * (self.th_w <= self.p)
         bias = self.bias * (self.th_b > self.p) + self.bias_upd * (self.th_b <= self.p)
         return F.linear(input, weight, bias)
