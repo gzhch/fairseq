@@ -7,6 +7,10 @@ import math
 
 import torch
 import torch.nn.functional as F
+
+import scipy.stats as stats
+import numpy as np
+
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
 
@@ -46,10 +50,16 @@ class SentencePredictionCriterion(FairseqCriterion):
         )
         targets = model.get_targets(sample, [logits]).view(-1)
         sample_size = targets.numel()
-
+        num_class = logits.size(1)
         if not self.regression_target:
             lprobs = F.log_softmax(logits, dim=-1, dtype=torch.float32)
             loss = F.nll_loss(lprobs, targets, reduction="sum")
+            if num_class == 2:
+                tp = ((logits[:, 0] <= logits[:, 1]) & (targets == 1)).long().sum()
+                fp = ((logits[:, 0] <= logits[:, 1]) & (targets == 0)).long().sum()
+                fn = ((logits[:, 0] > logits[:, 1]) & (targets == 1)).long().sum()
+                tn = ((logits[:, 0] > logits[:, 1]) & (targets == 0)).long().sum()
+                assert (tp + fp + tn + fn) == targets.size(0), 'invalid size'
         else:
             logits = logits.view(-1).float()
             targets = targets.float()
@@ -64,6 +74,14 @@ class SentencePredictionCriterion(FairseqCriterion):
         if not self.regression_target:
             preds = logits.argmax(dim=1)
             logging_output["ncorrect"] = (preds == targets).sum()
+            if num_class == 2:
+                logging_output.update(tp=utils.item(tp.data) if reduce else tp.data)
+                logging_output.update(fp=utils.item(fp.data) if reduce else fp.data)
+                logging_output.update(fn=utils.item(fn.data) if reduce else fn.data)
+                logging_output.update(tn=utils.item(tn.data) if reduce else tn.data)
+        else:
+            logging_output.update(x=logits.detach().cpu().numpy())
+            logging_output.update(y=targets.detach().cpu().numpy())
 
         return loss, sample_size, logging_output
 
@@ -85,9 +103,31 @@ class SentencePredictionCriterion(FairseqCriterion):
 
         if len(logging_outputs) > 0 and "ncorrect" in logging_outputs[0]:
             ncorrect = sum(log.get("ncorrect", 0) for log in logging_outputs)
-            metrics.log_scalar(
-                "accuracy", 100.0 * ncorrect / nsentences, nsentences, round=1
-            )
+            metrics.log_scalar("accuracy", 100.0 * ncorrect / nsentences, nsentences, round=1)
+
+            tp_sum = float(sum(log.get('tp', 0) for log in logging_outputs))
+            fp_sum = float(sum(log.get('fp', 0) for log in logging_outputs))
+            fn_sum = float(sum(log.get('fn', 0) for log in logging_outputs))
+            tn_sum = float(sum(log.get('tn', 0) for log in logging_outputs))
+            if tp_sum + fp_sum + fn_sum + tn_sum > 0:
+                assert tp_sum + fp_sum + fn_sum + tn_sum == sample_size, 'invalid size when aggregating'
+                acc = (tp_sum + tn_sum) / sample_size
+                tmp = 2 * tp_sum + fp_sum + fn_sum
+                f1 = (2 * tp_sum) / tmp if tmp else 0
+                tmp = (tp_sum + fp_sum) * (tp_sum + fn_sum) * (tn_sum + fp_sum) * (tn_sum + fn_sum)
+                mcc = (tp_sum * tn_sum - fp_sum * fn_sum) / (tmp ** 0.5) if tmp else 0
+                metrics.log_scalar('sample_size', sample_size)
+                metrics.log_scalar('f1', f1)
+                metrics.log_scalar('mcc', mcc)
+                metrics.log_scalar('acc_f1', 0.5 * (acc + f1))
+        if len(logging_outputs) > 0 and 'x' in logging_outputs[0]:
+            x = np.concatenate([log.get('x', np.array([])) for log in logging_outputs])
+            y = np.concatenate([log.get('y', np.array([])) for log in logging_outputs])
+            pearson = stats.pearsonr(x, y)[0]
+            spearman = stats.spearmanr(x, y)[0]
+            metrics.log_scalar('pearson', pearson)
+            metrics.log_scalar('spearman', spearman)
+            metrics.log_scalar('pearson_spearman', 0.5 * (pearson + spearman))
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
