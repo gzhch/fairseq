@@ -445,6 +445,7 @@ class TransformerEncoder(FairseqEncoder):
         src_lengths: Optional[torch.Tensor] = None,
         return_all_hiddens: bool = False,
         token_embeddings: Optional[torch.Tensor] = None,
+        attn_weights: Optional[list] = None,
     ):
         """
         Args:
@@ -470,7 +471,7 @@ class TransformerEncoder(FairseqEncoder):
                   Only populated if *return_all_hiddens* is True.
         """
         return self.forward_scriptable(
-            src_tokens, src_lengths, return_all_hiddens, token_embeddings
+            src_tokens, src_lengths, return_all_hiddens, token_embeddings, attn_weights
         )
 
     # TorchScript doesn't support super() method so that the scriptable Subclass
@@ -483,6 +484,7 @@ class TransformerEncoder(FairseqEncoder):
         src_lengths: Optional[torch.Tensor] = None,
         return_all_hiddens: bool = False,
         token_embeddings: Optional[torch.Tensor] = None,
+        attn_weights: Optional[list] = None,
     ):
         """
         Args:
@@ -494,6 +496,7 @@ class TransformerEncoder(FairseqEncoder):
                 intermediate hidden states (default: False).
             token_embeddings (torch.Tensor, optional): precomputed embeddings
                 default `None` will recompute embeddings
+            attn_weights: pre-extracted attention scores
 
         Returns:
             dict:

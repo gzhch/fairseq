@@ -204,12 +204,13 @@ class RobertaModel(FairseqEncoderModel):
         features_only=False,
         return_all_hiddens=False,
         classification_head_name=None,
+        attn_weights=None,
         **kwargs,
     ):
         if classification_head_name is not None:
             features_only = True
 
-        x, extra = self.encoder(src_tokens, features_only, return_all_hiddens, **kwargs)
+        x, extra = self.encoder(src_tokens, features_only, return_all_hiddens, attn_weights=attn_weights, **kwargs)
 
         if classification_head_name is not None:
             x = self.classification_heads[classification_head_name](x)
@@ -464,6 +465,7 @@ class RobertaEncoder(FairseqEncoder):
         features_only=False,
         return_all_hiddens=False,
         masked_tokens=None,
+        attn_weights=None,
         **unused,
     ):
         """
@@ -483,16 +485,17 @@ class RobertaEncoder(FairseqEncoder):
                   states have shape `(src_len, batch, vocab)`.
         """
         x, extra = self.extract_features(
-            src_tokens, return_all_hiddens=return_all_hiddens
+            src_tokens, return_all_hiddens=return_all_hiddens, attn_weights=attn_weights
         )
         if not features_only:
             x = self.output_layer(x, masked_tokens=masked_tokens)
         return x, extra
 
-    def extract_features(self, src_tokens, return_all_hiddens=False, **kwargs):
+    def extract_features(self, src_tokens, return_all_hiddens=False, attn_weights=None, **kwargs):
         encoder_out = self.sentence_encoder(
             src_tokens,
             return_all_hiddens=return_all_hiddens,
+            attn_weights=attn_weights,
             token_embeddings=kwargs.get("token_embeddings", None),
         )
         # T x B x C -> B x T x C
