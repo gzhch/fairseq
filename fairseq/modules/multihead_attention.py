@@ -332,7 +332,7 @@ class MultiheadAttention(nn.Module):
             if attn_mask is not None:
                 attn_mask = torch.cat(
                     [attn_mask, attn_mask.new_zeros(attn_mask.size(0), 1)], dim=1
-                )
+                ) 
             if key_padding_mask is not None:
                 key_padding_mask = torch.cat(
                     [
@@ -344,38 +344,41 @@ class MultiheadAttention(nn.Module):
                     dim=1,
                 )
 
-        attn_weights = torch.bmm(q, k.transpose(1, 2))
-        attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
+        # attn_weights = torch.bmm(q, k.transpose(1, 2))
+        # attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
 
-        assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
+        # assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
-        if attn_mask is not None:
-            attn_mask = attn_mask.unsqueeze(0)
-            if self.onnx_trace:
-                attn_mask = attn_mask.repeat(attn_weights.size(0), 1, 1)
-            attn_weights += attn_mask
+        # if attn_mask is not None:
+        #     attn_mask = attn_mask.unsqueeze(0)
+        #     if self.onnx_trace:
+        #         attn_mask = attn_mask.repeat(attn_weights.size(0), 1, 1)
+        #     attn_weights += attn_mask
 
-        if key_padding_mask is not None:
-            # don't attend to padding symbols
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            if not is_tpu:
-                attn_weights = attn_weights.masked_fill(
-                    key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
-                    float("-inf"),
-                )
-            else:
-                attn_weights = attn_weights.transpose(0, 2)
-                attn_weights = attn_weights.masked_fill(key_padding_mask, float("-inf"))
-                attn_weights = attn_weights.transpose(0, 2)
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+        # if key_padding_mask is not None:
+        #     # don't attend to padding symbols
+        #     attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+        #     if not is_tpu:
+        #         attn_weights = attn_weights.masked_fill(
+        #             key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool),
+        #             float("-inf"),
+        #         )
+        #     else:
+        #         attn_weights = attn_weights.transpose(0, 2)
+        #         attn_weights = attn_weights.masked_fill(key_padding_mask, float("-inf"))
+        #         attn_weights = attn_weights.transpose(0, 2)
+        #     attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
-        if before_softmax:
-            return attn_weights, v
+        # if before_softmax:
+        #     return attn_weights, v
 
-        attn_weights_float = utils.softmax(
-            attn_weights, dim=-1, onnx_trace=self.onnx_trace
-        )
-        attn_weights = attn_weights_float.type_as(attn_weights)
+        # attn_weights_float = utils.softmax(
+        #     attn_weights, dim=-1, onnx_trace=self.onnx_trace
+        # )
+        # attn_weights = attn_weights_float.type_as(attn_weights)
+        # attn_probs = self.dropout_module(attn_weights)
+
+        attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         attn_probs = self.dropout_module(attn_weights)
 
         assert v is not None
