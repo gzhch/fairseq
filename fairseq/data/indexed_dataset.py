@@ -264,6 +264,8 @@ class IndexedRawTextDataset(FairseqDataset):
         self.reverse_order = reverse_order
         self.read_data(path, dictionary)
         self.size = len(self.tokens_list)
+        self.attns = torch.load(path+'.attn')
+        assert len(self.attns) == self.size
 
     def read_data(self, path, dictionary):
         with open(path, "r", encoding="utf-8") as f:
@@ -286,7 +288,7 @@ class IndexedRawTextDataset(FairseqDataset):
     @lru_cache(maxsize=8)
     def __getitem__(self, i):
         self.check_index(i)
-        return self.tokens_list[i]
+        return self.tokens_list[i], self.attns[i]
 
     def get_original_text(self, i):
         self.check_index(i)

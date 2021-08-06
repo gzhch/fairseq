@@ -19,10 +19,10 @@ class PrependTokenDataset(BaseWrapperDataset):
             self._sizes = dataset.sizes
 
     def __getitem__(self, idx):
-        item = self.dataset[idx]
+        item, attn = self.dataset[idx]
         if self.token is not None:
             item = torch.cat([item.new([self.token]), item])
-        return item
+        return item,  attn
 
     @property
     def sizes(self):

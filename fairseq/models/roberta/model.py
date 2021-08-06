@@ -210,7 +210,8 @@ class RobertaModel(FairseqEncoderModel):
         if classification_head_name is not None:
             features_only = True
 
-        x, extra = self.encoder(src_tokens, features_only, return_all_hiddens, attn_weights=attn_weights, **kwargs)
+        src, attn_weights = src_tokens
+        x, extra = self.encoder(src, features_only, return_all_hiddens, attn_weights=attn_weights, **kwargs)
 
         if classification_head_name is not None:
             x = self.classification_heads[classification_head_name](x)

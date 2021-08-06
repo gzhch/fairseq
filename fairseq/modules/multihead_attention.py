@@ -70,43 +70,43 @@ class MultiheadAttention(nn.Module):
             "Self-attention requires query, key and " "value to be of the same size"
         )
         if self.rft > 0:
-            self.k_proj = quant_noise(
-                RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
-            )
+            # self.k_proj = quant_noise(
+            #     RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
+            # )
             self.v_proj = quant_noise(
                 RFTLinear(self.vdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
             )
-            self.q_proj = quant_noise(
-                RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
-            )
+            # self.q_proj = quant_noise(
+            #     RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
+            # )
 
             self.out_proj = quant_noise(
                 RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
             )
         elif self.rft == -1:
-            self.k_proj = quant_noise(
-                NogradLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
-            )
+            # self.k_proj = quant_noise(
+            #     NogradLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            # )
             self.v_proj = quant_noise(
                 NogradLinear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
             )
-            self.q_proj = quant_noise(
-                NogradLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
-            )
+            # self.q_proj = quant_noise(
+            #     NogradLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            # )
 
             self.out_proj = quant_noise(
                 NogradLinear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
             )
         else:
-            self.k_proj = quant_noise(
-                nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
-            )
+            # self.k_proj = quant_noise(
+            #     nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
+            # )
             self.v_proj = quant_noise(
                 nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
             )
-            self.q_proj = quant_noise(
-                nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
-            )
+            # self.q_proj = quant_noise(
+            #     nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            # )
 
             self.out_proj = quant_noise(
                 nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
@@ -129,12 +129,12 @@ class MultiheadAttention(nn.Module):
 
     def reset_parameters(self):
         if self.rft > 0:
-            nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
+            #nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.v_proj.weight, gain=1 / math.sqrt(2))
-            nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
-            nn.init.xavier_uniform_(self.k_proj.weight_upd, gain=1 / math.sqrt(2))
+            #nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
+            #nn.init.xavier_uniform_(self.k_proj.weight_upd, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.v_proj.weight_upd, gain=1 / math.sqrt(2))
-            nn.init.xavier_uniform_(self.q_proj.weight_upd, gain=1 / math.sqrt(2))
+            #nn.init.xavier_uniform_(self.q_proj.weight_upd, gain=1 / math.sqrt(2))
             nn.init.xavier_uniform_(self.out_proj.weight)
             nn.init.xavier_uniform_(self.out_proj.weight_upd)
             nn.init.constant_(self.out_proj.bias, 0.0)
@@ -144,13 +144,13 @@ class MultiheadAttention(nn.Module):
             if self.qkv_same_dim:
                 # Empirically observed the convergence to be much better with
                 # the scaled initialization
-                nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
+                #nn.init.xavier_uniform_(self.k_proj.weight, gain=1 / math.sqrt(2))
                 nn.init.xavier_uniform_(self.v_proj.weight, gain=1 / math.sqrt(2))
-                nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
+                #nn.init.xavier_uniform_(self.q_proj.weight, gain=1 / math.sqrt(2))
             else:
-                nn.init.xavier_uniform_(self.k_proj.weight)
+                #nn.init.xavier_uniform_(self.k_proj.weight)
                 nn.init.xavier_uniform_(self.v_proj.weight)
-                nn.init.xavier_uniform_(self.q_proj.weight)
+                #nn.init.xavier_uniform_(self.q_proj.weight)
             nn.init.xavier_uniform_(self.out_proj.weight)
 
             if self.out_proj.bias is not None:
@@ -165,6 +165,7 @@ class MultiheadAttention(nn.Module):
         query,
         key: Optional[Tensor],
         value: Optional[Tensor],
+        attn_weights: Optional[Tensor],
         key_padding_mask: Optional[Tensor] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         need_weights: bool = True,
@@ -218,25 +219,25 @@ class MultiheadAttention(nn.Module):
             saved_state = None
 
         if self.self_attention:
-            q = self.q_proj(query)
-            k = self.k_proj(query)
+            # q = self.q_proj(query)
+            # k = self.k_proj(query)
             v = self.v_proj(query)
-        elif self.encoder_decoder_attention:
-            # encoder-decoder attention
-            q = self.q_proj(query)
-            if key is None:
-                assert value is None
-                k = v = None
-            else:
-                k = self.k_proj(key)
-                v = self.v_proj(key)
+        # elif self.encoder_decoder_attention:
+        #     # encoder-decoder attention
+        #     q = self.q_proj(query)
+        #     if key is None:
+        #         assert value is None
+        #         k = v = None
+        #     else:
+        #         k = self.k_proj(key)
+        #         v = self.v_proj(key)
 
-        else:
-            assert key is not None and value is not None
-            q = self.q_proj(query)
-            k = self.k_proj(key)
-            v = self.v_proj(value)
-        q *= self.scaling
+        # else:
+        #     assert key is not None and value is not None
+        #     q = self.q_proj(query)
+        #     k = self.k_proj(key)
+        #     v = self.v_proj(value)
+        # q *= self.scaling
 
         if self.bias_k is not None:
             assert self.bias_v is not None
@@ -255,17 +256,17 @@ class MultiheadAttention(nn.Module):
                     dim=1,
                 )
 
-        q = (
-            q.contiguous()
-            .view(tgt_len, bsz * self.num_heads, self.head_dim)
-            .transpose(0, 1)
-        )
-        if k is not None:
-            k = (
-                k.contiguous()
-                .view(-1, bsz * self.num_heads, self.head_dim)
-                .transpose(0, 1)
-            )
+        # q = (
+        #     q.contiguous()
+        #     .view(tgt_len, bsz * self.num_heads, self.head_dim)
+        #     .transpose(0, 1)
+        # )
+        # if k is not None:
+        #     k = (
+        #         k.contiguous()
+        #         .view(-1, bsz * self.num_heads, self.head_dim)
+        #         .transpose(0, 1)
+        #     )
         if v is not None:
             v = (
                 v.contiguous()
@@ -312,8 +313,8 @@ class MultiheadAttention(nn.Module):
             # In this branch incremental_state is never None
             assert incremental_state is not None
             incremental_state = self._set_input_buffer(incremental_state, saved_state)
-        assert k is not None
-        assert k.size(1) == src_len
+        # assert k is not None
+        # assert k.size(1) == src_len
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
@@ -377,8 +378,10 @@ class MultiheadAttention(nn.Module):
         # )
         # attn_weights = attn_weights_float.type_as(attn_weights)
         # attn_probs = self.dropout_module(attn_weights)
-
-        attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+        # print(attn_weights.shape)
+        # print(bsz, self.num_heads, tgt_len, src_len)
+        # print('\n')
+        attn_weights = attn_weights.reshape(bsz * self.num_heads, tgt_len, src_len)
         attn_probs = self.dropout_module(attn_weights)
 
         assert v is not None
@@ -494,8 +497,8 @@ class MultiheadAttention(nn.Module):
             if k.endswith(prefix + "in_proj_weight"):
                 # in_proj_weight used to be q + k + v with same dimensions
                 dim = int(state_dict[k].shape[0] / 3)
-                items_to_add[prefix + "q_proj.weight"] = state_dict[k][:dim]
-                items_to_add[prefix + "k_proj.weight"] = state_dict[k][dim : 2 * dim]
+                # items_to_add[prefix + "q_proj.weight"] = state_dict[k][:dim]
+                # items_to_add[prefix + "k_proj.weight"] = state_dict[k][dim : 2 * dim]
                 items_to_add[prefix + "v_proj.weight"] = state_dict[k][2 * dim :]
 
                 keys_to_remove.append(k)
@@ -503,21 +506,21 @@ class MultiheadAttention(nn.Module):
                 k_bias = prefix + "in_proj_bias"
                 if k_bias in state_dict.keys():
                     dim = int(state_dict[k].shape[0] / 3)
-                    items_to_add[prefix + "q_proj.bias"] = state_dict[k_bias][:dim]
-                    items_to_add[prefix + "k_proj.bias"] = state_dict[k_bias][
-                        dim : 2 * dim
-                    ]
+                    # items_to_add[prefix + "q_proj.bias"] = state_dict[k_bias][:dim]
+                    # items_to_add[prefix + "k_proj.bias"] = state_dict[k_bias][
+                    #     dim : 2 * dim
+                    # ]
                     items_to_add[prefix + "v_proj.bias"] = state_dict[k_bias][2 * dim :]
 
                     keys_to_remove.append(prefix + "in_proj_bias")
 
                 if self.rft > 0:
-                    items_to_add[prefix + "q_proj.weight_upd"] = state_dict[k][:dim]
-                    items_to_add[prefix + "k_proj.weight_upd"] = state_dict[k][dim : 2 * dim]
+                    # items_to_add[prefix + "q_proj.weight_upd"] = state_dict[k][:dim]
+                    # items_to_add[prefix + "k_proj.weight_upd"] = state_dict[k][dim : 2 * dim]
                     items_to_add[prefix + "v_proj.weight_upd"] = state_dict[k][2 * dim :]
                     if k_bias in state_dict.keys():
-                        items_to_add[prefix + "q_proj.bias_upd"] = state_dict[k_bias][:dim]
-                        items_to_add[prefix + "k_proj.bias_upd"] = state_dict[k_bias][dim : 2 * dim]
+                        # items_to_add[prefix + "q_proj.bias_upd"] = state_dict[k_bias][:dim]
+                        # items_to_add[prefix + "k_proj.bias_upd"] = state_dict[k_bias][dim : 2 * dim]
                         items_to_add[prefix + "v_proj.bias_upd"] = state_dict[k_bias][2 * dim :]
             elif self.rft > 0 and k.endswith(prefix + "out_proj.weight"):
                 items_to_add[prefix + "out_proj.weight_upd"] = state_dict[k]

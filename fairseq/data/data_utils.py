@@ -35,7 +35,7 @@ def infer_language_pair(path):
 
 
 def collate_tokens(
-    values,
+    samples,
     pad_idx,
     eos_idx=None,
     left_pad=False,
@@ -45,14 +45,15 @@ def collate_tokens(
     pad_to_bsz=None,
 ):
     """Convert a list of 1d tensors into a padded 2d tensor."""
+    values, attns = zip(*samples)
     size = max(v.size(0) for v in values)
     size = size if pad_to_length is None else max(size, pad_to_length)
     if pad_to_multiple != 1 and size % pad_to_multiple != 0:
         size = int(((size - 0.1) // pad_to_multiple + 1) * pad_to_multiple)
 
     batch_size = len(values) if pad_to_bsz is None else max(len(values), pad_to_bsz)
-    res = values[0].new(batch_size, size).fill_(pad_idx)
-
+    res_values = values[0].new(batch_size, size).fill_(pad_idx)
+    res_attns = attns[0].new(batch_size, 24, 16, size, size).fill_(0)
     def copy_tensor(src, dst):
         assert dst.numel() == src.numel()
         if move_eos_to_beginning:
@@ -65,9 +66,10 @@ def collate_tokens(
         else:
             dst.copy_(src)
 
-    for i, v in enumerate(values):
-        copy_tensor(v, res[i][size - len(v) :] if left_pad else res[i][: len(v)])
-    return res
+    for i, (v, a) in enumerate(samples):
+        copy_tensor(v, res_values[i][size - len(v) :] if left_pad else res_values[i][: len(v)])
+        res_attns[i, :, :, :len(v), :len(v)].copy_(a)
+    return res_values, res_attns
 
 def load_indexed_dataset(
     path, dictionary=None, dataset_impl=None, combine=False, default="cached"

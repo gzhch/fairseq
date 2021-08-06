@@ -150,6 +150,7 @@ class TransformerEncoderLayer(nn.Module):
     def forward(
         self,
         x,
+        attn_weights,
         encoder_padding_mask: Optional[Tensor],
         attn_mask: Optional[Tensor] = None,
     ):
@@ -183,6 +184,7 @@ class TransformerEncoderLayer(nn.Module):
             query=x,
             key=x,
             value=x,
+            attn_weights=attn_weights,
             key_padding_mask=encoder_padding_mask,
             need_weights=False,
             attn_mask=attn_mask,

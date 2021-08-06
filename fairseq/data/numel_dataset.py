@@ -15,7 +15,7 @@ class NumelDataset(BaseWrapperDataset):
         self.reduce = reduce
 
     def __getitem__(self, index):
-        item = self.dataset[index]
+        item, _ = self.dataset[index]
         if torch.is_tensor(item):
             return torch.numel(item)
         else:

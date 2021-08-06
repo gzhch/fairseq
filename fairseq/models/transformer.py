@@ -529,9 +529,9 @@ class TransformerEncoder(FairseqEncoder):
             encoder_states.append(x)
 
         # encoder layers
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             x = layer(
-                x, encoder_padding_mask=encoder_padding_mask if has_pads else None
+                x, attn_weights[:, i, :, :, :], encoder_padding_mask=encoder_padding_mask if has_pads else None
             )
             if return_all_hiddens:
                 assert encoder_states is not None

@@ -166,6 +166,7 @@ do
       --testpref "${TESTPREF//LANG/$LANG}" \
       --destdir "$TASK-bin/$LANG" \
       --workers 60 \
+      --dataset-impl raw \
       --srcdict dict.txt;
   done
   if [[ "$TASK" !=  "STS-B" ]]
