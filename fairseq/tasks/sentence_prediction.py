@@ -10,6 +10,7 @@ import numpy as np
 from fairseq import utils
 from fairseq.data import (
     ConcatSentencesDataset,
+    TripleSentenceDataset,
     Dictionary,
     IdDataset,
     NestedDictionaryDataset,
@@ -160,17 +161,23 @@ class SentencePredictionTask(LegacyFairseqTask):
             get_path("input0", split)
         )
         input1 = make_dataset("input1", self.source_dictionary)
+        input2 = make_dataset("input2", self.source_dictionary)
 
         if self.args.init_token is not None:
             input0 = PrependTokenDataset(input0, self.args.init_token)
 
         if input1 is None:
             src_tokens = input0
-        else:
+        elif input2 is None:
             if self.args.separator_token is not None:
                 input1 = PrependTokenDataset(input1, self.args.separator_token)
 
             src_tokens = ConcatSentencesDataset(input0, input1)
+        else:
+            if self.args.separator_token is not None:
+                input2 = PrependTokenDataset(input2, self.args.separator_token)
+
+            src_tokens = TripleSentenceDataset(self.max_positions(), input0, input1, input2)
 
         with data_utils.numpy_seed(self.args.seed):
             shuffle = np.random.permutation(len(src_tokens))

@@ -18,7 +18,7 @@ from .backtranslation_dataset import BacktranslationDataset
 from .bucket_pad_length_dataset import BucketPadLengthDataset
 from .colorize_dataset import ColorizeDataset
 from .concat_dataset import ConcatDataset
-from .concat_sentences_dataset import ConcatSentencesDataset
+from .concat_sentences_dataset import ConcatSentencesDataset, TripleSentenceDataset
 from .denoising_dataset import DenoisingDataset
 from .id_dataset import IdDataset
 from .indexed_dataset import (
@@ -123,6 +123,7 @@ __all__ = [
     "TokenBlockDataset",
     "TransformEosDataset",
     "TransformEosLangPairDataset",
+    "TripleSentenceDataset",
     "TruncateDataset",
     "TruncatedDictionary",
 ]

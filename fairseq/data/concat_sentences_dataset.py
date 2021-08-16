@@ -52,3 +52,55 @@ class ConcatSentencesDataset(FairseqDataset):
         for ds in self.datasets:
             if hasattr(ds, "set_epoch"):
                 ds.set_epoch(epoch)
+
+
+class TripleSentenceDataset(FairseqDataset):
+    def __init__(self,  seq_len, *datasets):
+        super().__init__()
+        self.datasets = datasets
+        self.length = seq_len
+        assert all(
+            len(ds) == len(datasets[0]) for ds in datasets
+        ), "datasets must have the same length"
+        assert len(self.datasets) == 3, "must contain three datasets"
+        
+    def __getitem__(self, index):
+        d1 = self.datasets[1][index]
+        d2 = self.datasets[2][index]
+        d0 = self.datasets[0][index][:self.length-len(d1)-len(d2)]
+        return torch.cat([d0, d1, d2])
+
+    def __len__(self):
+        return len(self.datasets[0])
+
+    def collater(self, samples):
+        return self.datasets[0].collater(samples)
+
+    @property
+    def sizes(self):
+        s = sum(ds.sizes for ds in self.datasets)
+        return (s <= self.length) * s + (s > self.length) * self.length
+
+    def num_tokens(self, index):
+        return min(sum(ds.num_tokens(index) for ds in self.datasets), self.length)
+
+    def size(self, index):
+        return min(sum(ds.size(index) for ds in self.datasets), self.length)
+
+    def ordered_indices(self):
+        return self.datasets[0].ordered_indices()
+
+    @property
+    def supports_prefetch(self):
+        return any(getattr(ds, "supports_prefetch", False) for ds in self.datasets)
+
+    def prefetch(self, indices):
+        for ds in self.datasets:
+            if getattr(ds, "supports_prefetch", False):
+                ds.prefetch(indices)
+
+    def set_epoch(self, epoch):
+        super().set_epoch(epoch)
+        for ds in self.datasets:
+            if hasattr(ds, "set_epoch"):
+                ds.set_epoch(epoch)
