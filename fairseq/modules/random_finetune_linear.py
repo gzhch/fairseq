@@ -91,3 +91,37 @@ class NogradLinear(nn.Module):
             self.in_features, self.out_features, self.bias is not None
         )
 
+class LoRALinear(nn.Module):
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, rank: int = 8) -> None:
+        super(LoRALinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.r  = rank
+
+        self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
+        self.a = Parameter(torch.Tensor(out_features, self.r), requires_grad=True)
+        self.b = Parameter(torch.Tensor(self.r, in_features), requires_grad=True)
+
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features), requires_grad=False)
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        #nn.init.normal_(self.a, std=1/np.sqrt(self.in_features))
+        nn.init.normal_(self.a)
+        nn.init.zeros_(self.b)
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.linear(input, self.weight, self.bias) + F.linear(input, torch.mm(self.a, self.b)) / self.r
+
+    def extra_repr(self) -> str:
+        return 'in_features={}, out_features={}, bias={}, rank={}'.format(
+            self.in_features, self.out_features, self.bias is not None, self.r
+        )

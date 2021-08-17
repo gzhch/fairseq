@@ -556,7 +556,7 @@ def base_architecture(args):
     args.ft_layer = getattr(args, "ft_layer", [])
     args.mask_type = getattr(args, "mask_type", -1)
     args.grad_dropout = getattr(args, "grad_dropout", False)
-    
+    args.lora = getattr(args, "lora", 0)
 
 
 

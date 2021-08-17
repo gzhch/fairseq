@@ -14,7 +14,7 @@ from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor, nn
 from torch.nn import Parameter
-from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear
 
 
 @with_incremental_state
@@ -40,7 +40,8 @@ class MultiheadAttention(nn.Module):
         qn_block_size=8,
         random_ft=0.001,
         mask_type=2,
-        grad_dropout=False
+        grad_dropout=False,
+        lora=0,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -52,10 +53,12 @@ class MultiheadAttention(nn.Module):
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
         )
-
+        
         self.rft = random_ft
         self.mask_type = mask_type
         self.grad_dropout = grad_dropout
+
+        self.lora =  lora
 
         self.head_dim = embed_dim // num_heads
         assert (
@@ -110,6 +113,21 @@ class MultiheadAttention(nn.Module):
 
             self.out_proj = quant_noise(
                 nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
+            )
+
+        if self.lora > 0:
+            self.k_proj = quant_noise(
+                LoRALinear(self.kdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                LoRALinear(self.vdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+
+            self.out_proj = quant_noise(
+                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
             )
 
         if add_bias_kv:

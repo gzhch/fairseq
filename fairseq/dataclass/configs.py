@@ -1011,6 +1011,12 @@ class ModelConfig(FairseqDataclass):
             "help": "if set True, then dynamically choose parameters to update in every forward() call"
         }
     )
+    lora: int = field(
+        default=0,
+        metadata={
+            "help": "LoRA: Low-Rank Adaptation of Large Language Models"
+        }
+    )
 
 @dataclass
 class FairseqConfig(FairseqDataclass):

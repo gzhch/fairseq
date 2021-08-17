@@ -43,7 +43,7 @@ class TransformerEncoderLayer(nn.Module):
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
             if self.rft > 0:
                 self.rft = -1
-        
+        self.lora = getattr(args, "lora", 0)
 
 
         self.embed_dim = args.encoder_embed_dim
@@ -86,7 +86,7 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1:
+        elif self.rft == -1 or self.lora > 0:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
@@ -99,7 +99,7 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1:
+        elif self.rft == -1 or self.lora > 0:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
@@ -117,7 +117,8 @@ class TransformerEncoderLayer(nn.Module):
             qn_block_size=self.quant_noise_block_size,
             random_ft=self.rft,
             mask_type=self.mask_type,
-            grad_dropout=self.grad_dropout
+            grad_dropout=self.grad_dropout,
+            lora=self.lora,
         )
 
     def residual_connection(self, x, residual):
