@@ -44,6 +44,18 @@ class WSCTask(LegacyFairseqTask):
             default=None,
             help="add token at the beginning of each batch item",
         )
+        parser.add_argument(
+            "--num-classes",
+            type=int,
+            default=-1,
+            help="number of classes or regression targets",
+        )
+        parser.add_argument(
+            "--separator-token",
+            type=int,
+            default=None,
+            help="add separator token between inputs",
+        )
 
     def __init__(self, args, vocab):
         super().__init__(args)
