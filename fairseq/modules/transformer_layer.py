@@ -13,7 +13,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear, RFTLoRALinear
 
 class TransformerEncoderLayer(nn.Module):
     """Encoder layer block.
@@ -82,30 +82,50 @@ class TransformerEncoderLayer(nn.Module):
         self.final_layer_norm = LayerNorm(self.embed_dim, export=export)
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
-        if self.rft > 0:
+        if self.rft > 0 and self.lora == 0:
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1 or self.lora > 0:
+        elif self.rft > 0 and self.lora > 0:
+            return quant_noise(
+                RFTLoRALinear(input_dim, output_dim, prob=self.rft, rank=self.lora), p=q_noise, block_size=qn_block_size
+            )
+        elif self.rft == 0 and self.lora > 0:
+            return quant_noise(
+                LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
+            )
+        elif self.rft == -1:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
+        
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
 
+
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
-        if self.rft > 0:
+        if self.rft > 0 and self.lora == 0:
             return quant_noise(
                 RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1 or self.lora > 0:
+        elif self.rft > 0 and self.lora > 0:
+            return quant_noise(
+                RFTLoRALinear(input_dim, output_dim, prob=self.rft, rank=self.lora), p=q_noise, block_size=qn_block_size
+            )
+        elif self.rft == 0 and self.lora > 0:
+            return quant_noise(
+                LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
+            )
+        elif self.rft == -1:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
+        
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
+
 
     def build_self_attention(self, embed_dim, args):
         return MultiheadAttention(

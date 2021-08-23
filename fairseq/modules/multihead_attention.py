@@ -14,7 +14,7 @@ from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor, nn
 from torch.nn import Parameter
-from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear, RFTLoRALinear
 
 
 @with_incremental_state
@@ -72,7 +72,7 @@ class MultiheadAttention(nn.Module):
         assert not self.self_attention or self.qkv_same_dim, (
             "Self-attention requires query, key and " "value to be of the same size"
         )
-        if self.rft > 0:
+        if self.rft > 0 and self.lora == 0:
             self.k_proj = quant_noise(
                 RFTLinear(self.kdim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
             )
@@ -86,6 +86,35 @@ class MultiheadAttention(nn.Module):
             self.out_proj = quant_noise(
                 RFTLinear(embed_dim, embed_dim, bias=bias, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), q_noise, qn_block_size
             )
+        elif self.rft > 0 and self.lora > 0:
+            self.k_proj = quant_noise(
+                RFTLoRALinear(self.kdim, embed_dim, bias=bias, prob=self.rft, rank=self.lora), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                RFTLoRALinear(self.vdim, embed_dim, bias=bias, prob=self.rft, rank=self.lora), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                RFTLoRALinear(embed_dim, embed_dim, bias=bias, prob=self.rft, rank=self.lora), q_noise, qn_block_size
+            )
+
+            self.out_proj = quant_noise(
+                RFTLoRALinear(embed_dim, embed_dim, bias=bias, prob=self.rft, rank=self.lora), q_noise, qn_block_size
+            )
+        elif self.rft == 0 and self.lora > 0:
+            self.k_proj = quant_noise(
+                LoRALinear(self.kdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+            self.v_proj = quant_noise(
+                LoRALinear(self.vdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+            self.q_proj = quant_noise(
+                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+
+            self.out_proj = quant_noise(
+                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
+            )
+
         elif self.rft == -1:
             self.k_proj = quant_noise(
                 NogradLinear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
@@ -115,20 +144,7 @@ class MultiheadAttention(nn.Module):
                 nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
             )
 
-        if self.lora > 0:
-            self.k_proj = quant_noise(
-                LoRALinear(self.kdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
-            )
-            self.v_proj = quant_noise(
-                LoRALinear(self.vdim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
-            )
-            self.q_proj = quant_noise(
-                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
-            )
-
-            self.out_proj = quant_noise(
-                LoRALinear(embed_dim, embed_dim, bias=bias, rank=self.lora), q_noise, qn_block_size
-            )
+        
 
         if add_bias_kv:
             self.bias_k = Parameter(torch.Tensor(1, 1, embed_dim))
