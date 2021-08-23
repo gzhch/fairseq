@@ -66,6 +66,9 @@ class TransformerEncoderLayer(nn.Module):
             float(activation_dropout_p), module_name=self.__class__.__name__
         )
         self.normalize_before = args.encoder_normalize_before
+        
+        #self.lora = -1 # disable lora for ffn
+        
         self.fc1 = self.build_fc1(
             self.embed_dim,
             args.encoder_ffn_embed_dim,
@@ -94,7 +97,7 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1:
+        elif self.rft == -1 or self.lora == -1:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
@@ -117,7 +120,7 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
             )
-        elif self.rft == -1:
+        elif self.rft == -1 or self.lora == -1:
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )

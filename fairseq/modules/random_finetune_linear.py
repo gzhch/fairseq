@@ -102,6 +102,7 @@ class LoRALinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.r  = rank
+        self.alpha = 32
 
         self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
         self.a = Parameter(torch.Tensor(out_features, self.r), requires_grad=True)
@@ -115,11 +116,11 @@ class LoRALinear(nn.Module):
 
     def reset_parameters(self) -> None:
         #nn.init.normal_(self.a, std=1/np.sqrt(self.in_features))
-        nn.init.normal_(self.a)
+        nn.init.normal_(self.a, std=0.02)
         nn.init.zeros_(self.b)
 
     def forward(self, input: Tensor) -> Tensor:
-        return F.linear(input, self.weight, self.bias) + F.linear(input, torch.mm(self.a, self.b)) / self.r
+        return F.linear(input, self.weight, self.bias) + F.linear(input, torch.mm(self.a, self.b)) * self.alpha / self.r
 
     def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}, rank={}'.format(
