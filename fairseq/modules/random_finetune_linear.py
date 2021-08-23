@@ -139,6 +139,7 @@ class RFTLoRALinear(nn.Module):
         self.out_features = out_features
         self.p = prob
         self.r  = rank
+        self.alpha = 32
 
         self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
         self.weight_upd = Parameter(torch.Tensor(out_features, in_features), requires_grad=True)
@@ -170,7 +171,7 @@ class RFTLoRALinear(nn.Module):
         weight = self.weight * (self.th_w > self.p) + self.weight_upd * (self.th_w <= self.p)
         bias = self.bias * (self.th_b > self.p) + self.bias_upd * (self.th_b <= self.p)
 
-        return F.linear(input, weight, bias) + F.linear(input, torch.mm(self.a, self.b)) / self.r
+        return F.linear(input, weight, bias) + F.linear(input, torch.mm(self.a, self.b)) * self.alpha  / self.r
 
     def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}, ft_rate={}, rank={}'.format(
