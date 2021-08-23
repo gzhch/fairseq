@@ -1,13 +1,20 @@
-LR=5e-4             # Peak LR for polynomial LR scheduler.
+TASK=$1
+LR=$2
+RFT=$3
+TYPE=2
+SEED=$4
+
+#LR=5e-4             # Peak LR for polynomial LR scheduler.
 N_EPOCH=30
 WARMUP_RATIO=15
 BSZ=16        # Batch size.
-TASK=RTE
-SEED=1
+#TASK=RTE
+#SEED=1
 MODEL=large
 
 ROBERTA_PATH=../transformer/models/roberta.$MODEL/model.pt
 DATA_PATH=../FastBERT/examples/roberta/glue/$TASK-bin/
+#DATA_PATH=./$TASK-bin/
 # ROBERTA_PATH=/blob/gzhch/model/roberta.$MODEL/model.pt
 # DATA_PATH=/blob/gzhch/data/glue/$TASK-bin/
 
@@ -57,7 +64,7 @@ fi
 
 if [ "$TASK" = "CoLA" ]
 then
-METRIC=accuracy
+METRIC=mcc
 EPOCH_ITER=268
 fi
 
@@ -91,7 +98,8 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
-    --random-ft 0.01 \
+    --random-ft $RFT \
+    --mask-type $TYPE \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \
     --max-sentences $BSZ \
@@ -112,5 +120,12 @@ python train.py $DATA_PATH \
     --max-epoch $N_EPOCH \
     --find-unused-parameters \
     --best-checkpoint-metric $METRIC --maximize-best-checkpoint-metric \
-    --save-dir $OUTPUT_PATH --no-progress-bar --log-interval 100 \
+    --no-save \
+    --patience 8 \
+    --num-workers 0 \
+    --save-dir $OUTPUT_PATH \
+    --no-progress-bar \
+    --log-interval 100 \
     --no-epoch-checkpoints --no-last-checkpoints | tee $OUTPUT_PATH/train_log.txt; #    --train_bias;
+
+#    --regression-target \
