@@ -170,7 +170,12 @@ class TransformerEncoderLayer(nn.Module):
             state_dict[prefix + "fc2.weight_upd"] = state_dict[prefix + "fc2.weight"]
             state_dict[prefix + "fc1.bias_upd"] = state_dict[prefix + "fc1.bias"]
             state_dict[prefix + "fc2.bias_upd"] = state_dict[prefix + "fc2.bias"]
-                
+
+            # for k in ["fc1.weight", "fc2.weight", "fc1.bias", "fc2.bias"]:
+            #     n = prefix + k
+            #     if n in state_dict.keys():
+            #         del state_dict[n]
+                    
     def forward(
         self,
         x,
