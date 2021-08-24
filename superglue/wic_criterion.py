@@ -64,6 +64,8 @@ class WiCCriterion(FairseqCriterion):
         fp = ((logits[:, 0] <= logits[:, 1]) & (targets == 0)).long().sum()
         fn = ((logits[:, 0] > logits[:, 1]) & (targets == 1)).long().sum()
         tn = ((logits[:, 0] > logits[:, 1]) & (targets == 0)).long().sum()
+        # print(tp, fp, fn, tn, targets.size(0))
+        # print(logits, targets)
         assert (tp + fp + tn + fn) == targets.size(0), 'invalid size'
         
         logging_output = {
