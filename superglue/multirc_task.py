@@ -52,7 +52,18 @@ class MultiRCTask(LegacyFairseqTask):
             help="add separator token between inputs",
         )
         parser.add_argument("--regression-target", action="store_true", default=False)
-        
+        parser.add_argument(
+            "--shorten-method",
+            default="none",
+            choices=["none", "truncate", "random_crop"],
+            help="if not none, shorten sequences that exceed --tokens-per-sample",
+        )
+        parser.add_argument(
+            "--shorten-data-split-list",
+            default="",
+            help="comma-separated list of dataset splits to apply shortening to, "
+            'e.g., "train,valid" (default: all dataset splits)',
+        )
 
     def __init__(self, args, vocab):
         super().__init__(args)
@@ -145,7 +156,7 @@ class MultiRCTask(LegacyFairseqTask):
                             labels.append(answer_dict["label"])
 
         print("nums of samples", len(src_tokens))
-                
+
         src_lengths = np.array([len(t) for t in src_tokens])
         src_tokens = ListDataset(src_tokens, src_lengths)
 
