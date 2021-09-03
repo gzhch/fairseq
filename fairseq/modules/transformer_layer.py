@@ -40,6 +40,9 @@ class TransformerEncoderLayer(nn.Module):
         self.mask_type = getattr(args, "mask_type", -1)
         self.ft_layer = getattr(args, "ft_layer", [])
         self.grad_dropout = getattr(args, "grad_dropout", False)
+        self.graded_rft = getattr(args, "graded_rft", 'const')
+        if self.graded_rft == 'linear':
+            self.rft = self.rft * (self.layer_id + 1) / self.max_layer
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
             if self.rft > 0:
                 self.rft = -1

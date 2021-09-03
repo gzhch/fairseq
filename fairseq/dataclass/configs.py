@@ -1017,6 +1017,10 @@ class ModelConfig(FairseqDataclass):
             "help": "LoRA: Low-Rank Adaptation of Large Language Models"
         }
     )
+    graded_rft: str = field(
+        default="const", metadata={"help": ""},
+    )
+    
 
 @dataclass
 class FairseqConfig(FairseqDataclass):

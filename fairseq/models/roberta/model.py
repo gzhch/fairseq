@@ -557,6 +557,7 @@ def base_architecture(args):
     args.mask_type = getattr(args, "mask_type", -1)
     args.grad_dropout = getattr(args, "grad_dropout", False)
     args.lora = getattr(args, "lora", 0)
+    args.graded_rft = getattr(args, "graded_rft", 'const')
 
 
 
