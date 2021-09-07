@@ -1,9 +1,10 @@
 TASK=$1
 LR=$2
 RFT=$3
+LORA=$4
 TYPE=2
-SEED=$4
-
+SEED=$5
+GRADED=linear
 #LR=5e-4             # Peak LR for polynomial LR scheduler.
 N_EPOCH=30
 WARMUP_RATIO=15
@@ -98,6 +99,8 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
+    --graded-rft $GRADED \
+    --lora $LORA \
     --random-ft $RFT \
     --mask-type $TYPE \
     --restore-file $ROBERTA_PATH \
