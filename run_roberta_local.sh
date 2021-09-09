@@ -5,12 +5,10 @@ LORA=$4
 TYPE=2
 SEED=$5
 GRADED=linear
-#LR=5e-4             # Peak LR for polynomial LR scheduler.
+
 N_EPOCH=30
 WARMUP_RATIO=15
 BSZ=16        # Batch size.
-#TASK=RTE
-#SEED=1
 MODEL=large
 
 ROBERTA_PATH=../transformer/models/roberta.$MODEL/model.pt
@@ -26,7 +24,6 @@ task_type=SMALL
 if [ "$TASK" = "MNLI" ]
 then
 N_CLASSES=3
-OPTION="--valid-subset valid,valid1"
 EPOCH_ITER=12471
 task_type=LARGE
 WARMUP_RATIO=60
@@ -77,6 +74,27 @@ OPTION="--regression-target"
 EPOCH_ITER=180
 fi
 
+if [ "$TASK" = "MNLI-10k" ]
+then
+N_CLASSES=3
+OPTION="--valid-subset valid,valid1"
+EPOCH_ITER=312
+fi
+
+if [ "$TASK" = "MNLI-5k" ]
+then
+N_CLASSES=3
+OPTION="--valid-subset valid,valid1"
+EPOCH_ITER=156
+fi
+
+if [ "$TASK" = "MNLI-3k" ]
+then
+N_CLASSES=3
+OPTION="--valid-subset valid,valid1"
+EPOCH_ITER=100
+fi
+
 EPOCH_ITER=$((EPOCH_ITER*2)) # expand to itr for bsz=16
 BSZ_EXPAND=$((BSZ/16))
 EPOCH_ITER=$((EPOCH_ITER/BSZ_EXPAND))
@@ -103,6 +121,7 @@ python train.py $DATA_PATH \
     --lora $LORA \
     --random-ft $RFT \
     --mask-type $TYPE \
+    --freeze-emb --freeze-norm \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \
     --max-sentences $BSZ \

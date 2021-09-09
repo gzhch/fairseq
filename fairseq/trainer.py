@@ -271,38 +271,59 @@ class Trainer(object):
         return self._lr_scheduler
 
     def _build_optimizer(self):
-        if self.cfg.optimization.train_bias:
-        #if False:
-            # Only update the bias terms
+        # if self.cfg.optimization.train_bias:
+        # #if False:
+        #     # Only update the bias terms
 
-            def check_param(n, p):
-                print(n)
+        #     def check_param(n, p):
+        #         print(n)
+        #         if not p.requires_grad:
+        #             return False
+        #         if n.endswith('bias') or n.startswith('classification_heads'):
+        #             return True
+        #     params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
+        #     params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
+
+
+        # else:
+        #     def check_param(n, p):
+        #         if not p.requires_grad:
+        #             return False
+        #         if n.find('embed') != -1 and self.cfg.optimization.freeze_emb:
+        #             return False
+        #         if self.cfg.model.ft_layer != [] and n.find('layers.') != -1:
+        #             for i in self.cfg.model.ft_layer:
+        #                 name = 'layers.' + str(i % 24) + '.'
+        #                 if n.find(name) != -1:
+        #                     return True
+        #             return False
+        #         # print(n)
+        #         return True
+    
+        #     params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
+        #     params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
+        
+        def check_param(n, p):
+            if self.cfg.optimization.train_bias:
                 if not p.requires_grad:
                     return False
                 if n.endswith('bias') or n.startswith('classification_heads'):
                     return True
-            params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
-            params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
-
-
-        else:
-            def check_param(n, p):
-                if not p.requires_grad:
+                return False
+            else:
+                if not p.requires_grad or (('embed' in n) and self.cfg.optimization.freeze_emb):
                     return False
-                if n.find('embed') != -1 and self.cfg.optimization.freeze_emb:
-                    return False
-                if self.cfg.model.ft_layer != [] and n.find('layers.') != -1:
+                if 'layers.' in n:
                     for i in self.cfg.model.ft_layer:
                         name = 'layers.' + str(i % 24) + '.'
-                        if n.find(name) != -1:
-                            return True
-                    return False
-                # print(n)
-                return True
-            
-            params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
-            params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
-
+                        if name in n:
+                            return False
+                    if self.cfg.optimization.freeze_norm and ('layer_norm' in n):
+                        return False
+                    return True
+        params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
+        params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
+    
         if (
             self.cfg.distributed_training.ddp_backend == "fully_sharded"
             and self.cfg.common.fp16

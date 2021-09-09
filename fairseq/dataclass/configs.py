@@ -576,6 +576,12 @@ class OptimizationConfig(FairseqDataclass):
             "help": "whether to freeze embedding during fine-tuning"
         }
     )
+    freeze_norm: bool = field(
+        default=False,
+        metadata={
+            "help": "whether to freeze layer norm during fine-tuning"
+        }
+    )
 
 
 @dataclass
