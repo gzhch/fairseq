@@ -868,7 +868,7 @@ class Trainer(object):
             with torch.autograd.profiler.record_function("optimizer"):
                 # take an optimization step
                 self.task.optimizer_step(
-                    self.optimizer, model=self.model, update_num=self.get_num_updates()
+                    self.optimizer, model=self.model, update_num=self.get_num_updates(), l1=self.cfg.optimization.l1_regularization
                 )
                 if self.cfg.common.amp and overflow:
                     if self._amp_retries == self.cfg.common.amp_batch_retries:

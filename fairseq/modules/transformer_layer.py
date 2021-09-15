@@ -13,7 +13,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear, RFTLoRALinear
+from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear, RFTLoRALinear, L1Linear
 
 class TransformerEncoderLayer(nn.Module):
     """Encoder layer block.
@@ -41,6 +41,9 @@ class TransformerEncoderLayer(nn.Module):
         self.ft_layer = getattr(args, "ft_layer", [])
         self.grad_dropout = getattr(args, "grad_dropout", False)
         self.graded_rft = getattr(args, "graded_rft", 'const')
+        self.l1_regularization = getattr(args, "l1_regularization", 0)
+        self.l1_penalty = nn.L1Loss(size_average=False)
+
         if self.graded_rft == 'linear':
             self.rft = self.rft * (self.layer_id + 1) / self.max_layer
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
@@ -54,7 +57,7 @@ class TransformerEncoderLayer(nn.Module):
         self.quant_noise_block_size = getattr(args, "quant_noise_pq_block_size", 8) or 8
         self.self_attn = self.build_self_attention(self.embed_dim, args)
         export = getattr(args, "export", False)
-        self.self_attn_layer_norm = LayerNorm(self.embed_dim, export=export)
+        self.self_attn_layer_norm = LayerNorm(self.embed_dim, export=export, l1=self.l1_regularization)
         self.dropout_module = FairseqDropout(
             args.dropout, module_name=self.__class__.__name__
         )
@@ -85,7 +88,7 @@ class TransformerEncoderLayer(nn.Module):
             self.quant_noise_block_size,
         )
 
-        self.final_layer_norm = LayerNorm(self.embed_dim, export=export)
+        self.final_layer_norm = LayerNorm(self.embed_dim, export=export, l1=self.l1_regularization)
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         if self.rft > 0 and self.lora == 0:
@@ -104,7 +107,10 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
-        
+        elif self.l1_regularization > 0:
+            return quant_noise(
+                L1Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
@@ -127,7 +133,10 @@ class TransformerEncoderLayer(nn.Module):
             return quant_noise(
                 NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
-        
+        elif self.l1_regularization > 0:
+            return quant_noise(
+                L1Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            )
         return quant_noise(
             nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
         )
@@ -145,6 +154,7 @@ class TransformerEncoderLayer(nn.Module):
             mask_type=self.mask_type,
             grad_dropout=self.grad_dropout,
             lora=self.lora,
+            l1_regularization=self.l1_regularization
         )
 
     def residual_connection(self, x, residual):
@@ -167,18 +177,23 @@ class TransformerEncoderLayer(nn.Module):
         Add support for RFT:
         + fc1.weight_upd ...
         """
-        if self.rft > 0:
+        if self.rft > 0 or self.l1_regularization > 0:
             prefix = name + "." if name != "" else ""
             state_dict[prefix + "fc1.weight_upd"] = state_dict[prefix + "fc1.weight"]
             state_dict[prefix + "fc2.weight_upd"] = state_dict[prefix + "fc2.weight"]
             state_dict[prefix + "fc1.bias_upd"] = state_dict[prefix + "fc1.bias"]
             state_dict[prefix + "fc2.bias_upd"] = state_dict[prefix + "fc2.bias"]
-
             # for k in ["fc1.weight", "fc2.weight", "fc1.bias", "fc2.bias"]:
             #     n = prefix + k
             #     if n in state_dict.keys():
             #         del state_dict[n]
-                    
+        if self.l1_regularization > 0:
+            prefix = name + "." if name != "" else ""
+            state_dict[prefix + "self_attn_layer_norm.weight_upd"] = state_dict[prefix + "self_attn_layer_norm.weight"]
+            state_dict[prefix + "final_layer_norm.weight_upd"] = state_dict[prefix + "final_layer_norm.weight"]
+            state_dict[prefix + "self_attn_layer_norm.bias_upd"] = state_dict[prefix + "self_attn_layer_norm.bias"]
+            state_dict[prefix + "final_layer_norm.bias_upd"] = state_dict[prefix + "final_layer_norm.bias"]
+         
     def forward(
         self,
         x,
@@ -236,6 +251,27 @@ class TransformerEncoderLayer(nn.Module):
             x = self.final_layer_norm(x)
         return x
 
+    def calc_l1(self):
+        l1_loss = 0
+        l1_loss += self.l1_penalty(self.fc1.bias_upd, self.fc1.bias)
+        l1_loss += self.l1_penalty(self.fc2.bias_upd, self.fc2.bias)
+        l1_loss += self.l1_penalty(self.self_attn.k_proj.bias_upd, self.self_attn.k_proj.bias)
+        l1_loss += self.l1_penalty(self.self_attn.v_proj.bias_upd, self.self_attn.v_proj.bias)
+        l1_loss += self.l1_penalty(self.self_attn.q_proj.bias_upd, self.self_attn.q_proj.bias)
+        l1_loss += self.l1_penalty(self.self_attn.out_proj.bias_upd, self.self_attn.out_proj.bias)
+        l1_loss += self.l1_penalty(self.self_attn_layer_norm.bias_upd, self.self_attn_layer_norm.bias)
+        l1_loss += self.l1_penalty(self.final_layer_norm.bias_upd, self.final_layer_norm.bias)
+
+        l1_loss += self.l1_penalty(self.fc1.weight_upd, self.fc1.weight)
+        l1_loss += self.l1_penalty(self.fc2.weight_upd, self.fc2.weight)
+        l1_loss += self.l1_penalty(self.self_attn.k_proj.weight_upd, self.self_attn.k_proj.weight)
+        l1_loss += self.l1_penalty(self.self_attn.v_proj.weight_upd, self.self_attn.v_proj.weight)
+        l1_loss += self.l1_penalty(self.self_attn.q_proj.weight_upd, self.self_attn.q_proj.weight)
+        l1_loss += self.l1_penalty(self.self_attn.out_proj.weight_upd, self.self_attn.out_proj.weight)
+        l1_loss += self.l1_penalty(self.self_attn_layer_norm.weight_upd, self.self_attn_layer_norm.weight)
+        l1_loss += self.l1_penalty(self.final_layer_norm.weight_upd, self.final_layer_norm.weight)
+
+        return l1_loss
 
 class TransformerDecoderLayer(nn.Module):
     """Decoder layer block.

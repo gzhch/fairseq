@@ -558,6 +558,7 @@ def base_architecture(args):
     args.grad_dropout = getattr(args, "grad_dropout", False)
     args.lora = getattr(args, "lora", 0)
     args.graded_rft = getattr(args, "graded_rft", 'const')
+    args.l1_regularization = getattr(args, "l1_regularization", 0)
 
 
 

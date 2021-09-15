@@ -117,11 +117,12 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
+    --l1-regularization 0.001 \
     --graded-rft $GRADED \
     --lora $LORA \
     --random-ft $RFT \
     --mask-type $TYPE \
-    --freeze-emb --freeze-norm \
+    --freeze-emb \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \
     --max-sentences $BSZ \
@@ -135,14 +136,13 @@ python train.py $DATA_PATH \
     --criterion sentence_prediction \
     --num-classes $N_CLASSES \
     --dropout 0.1 --attention-dropout 0.1 \
-    --weight-decay 0.1 --optimizer adam --adam-betas "(0.9, 0.98)" --adam-eps 1e-06 \
+    --weight-decay 0 --optimizer adam --adam-betas "(0.9, 0.98)" --adam-eps 1e-06 \
     --clip-norm 0.0 \
     --lr-scheduler polynomial_decay --lr $LR --total-num-update $TOTAL_STEPS --warmup-updates $WARMUP_STEPS \
     --fp16 --fp16-init-scale 4 --threshold-loss-scale 1 --fp16-scale-window 128 \
     --max-epoch $N_EPOCH \
     --find-unused-parameters \
     --best-checkpoint-metric $METRIC --maximize-best-checkpoint-metric \
-    --no-save \
     --patience 8 \
     --num-workers 0 \
     --save-dir $OUTPUT_PATH \
@@ -151,3 +151,4 @@ python train.py $DATA_PATH \
     --no-epoch-checkpoints --no-last-checkpoints | tee $OUTPUT_PATH/train_log.txt; #    --train_bias;
 
 #    --regression-target \
+#    --no-save \

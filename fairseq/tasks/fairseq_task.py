@@ -512,7 +512,16 @@ class FairseqTask(object):
             loss, sample_size, logging_output = criterion(model, sample)
         return loss, sample_size, logging_output
 
-    def optimizer_step(self, optimizer, model, update_num):
+    def optimizer_step(self, optimizer, model, update_num, l1=0):
+        if l1:
+            l1_loss = 0
+            l1_penalty = torch.nn.L1Loss(size_average=False)
+            for i in model.encoder.sentence_encoder.layers:
+                l1_loss += i.calc_l1()
+            with torch.autograd.profiler.record_function("backward"):
+                optimizer.backward(l1_loss * l1)
+            #print(l1_loss)
+            del l1_loss
         optimizer.step()
 
     def build_dataset_for_inference(

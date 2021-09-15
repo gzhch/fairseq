@@ -580,8 +580,16 @@ class OptimizationConfig(FairseqDataclass):
         default=False,
         metadata={
             "help": "whether to freeze layer norm during fine-tuning"
-        }
+        },
     )
+    l1_regularization: float = field(
+        default=0,
+        metadata={
+            "help": ""
+        },
+    )
+    
+
 
 
 @dataclass
@@ -1026,7 +1034,7 @@ class ModelConfig(FairseqDataclass):
     graded_rft: str = field(
         default="const", metadata={"help": ""},
     )
-    
+
 
 @dataclass
 class FairseqConfig(FairseqDataclass):

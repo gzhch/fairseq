@@ -178,3 +178,40 @@ class RFTLoRALinear(nn.Module):
         return 'in_features={}, out_features={}, bias={}, ft_rate={}, rank={}'.format(
             self.in_features, self.out_features, self.bias is not None, self.p, self.r
         )
+
+class L1Linear(nn.Module):
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
+        super(L1Linear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+
+        self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
+        self.weight_upd = Parameter(torch.Tensor(out_features, in_features), requires_grad=True)
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features), requires_grad=False)
+            self.bias_upd = Parameter(torch.Tensor(out_features), requires_grad=True)
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.kaiming_uniform_(self.weight_upd, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias_upd is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_upd)
+            bound = 1 / math.sqrt(fan_in)
+            nn.init.uniform_(self.bias_upd, -bound, bound)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.linear(input, self.weight_upd, self.bias_upd)
+
+    def extra_repr(self) -> str:
+        return 'in_features={}, out_features={}, bias={}'.format(
+            self.in_features, self.out_features, self.bias_upd is not None
+        )
