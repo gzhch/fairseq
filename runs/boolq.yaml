@@ -1,0 +1,72 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - python setup.py build_ext --inplace
+    - cp /blob/gzhch/run_superglue.sh .
+    - cp /blob/gzhch/run_lora_superglue.sh .
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+# jobs:
+# - name: WiC-test
+#   sku: G1-V100-IB
+#   command:
+#   - cd code
+#   - bash ./run_superglue.sh WiC 1e-4 1e-2 1
+
+# search:
+#   job_template:
+#     name: search_BoolQ_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash ./run_superglue.sh BoolQ {lr} {p} 1
+#       - bash ./run_superglue.sh BoolQ {lr} {p} 2
+#       - bash ./run_superglue.sh BoolQ {lr} {p} 3
+#       - bash ./run_superglue.sh BoolQ {lr} {p} 4
+#   type: grid
+#   max_trials: 32
+#   params:
+#     - name: lr
+#       spec: discrete
+#       values: [5e-5, 1e-4, 2e-4, 4e-4, 6e-4, 8e-4]
+#     - name: p
+#       spec: discrete
+#       values: [5e-3, 1e-2, 5e-2, 1e-1]
+# # search : lora
+search:
+  job_template:
+    name: lora_BoolQ_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash ./run_lora_superglue.sh BoolQ {lr} {p} {r} 1
+      - bash ./run_lora_superglue.sh BoolQ {lr} {p} {r} 2
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3]
+    - name: r
+      spec: discrete
+      values: [8, 16]
+    - name: p
+      spec: discrete
+      values: [0, 1e-2, 5e-2]

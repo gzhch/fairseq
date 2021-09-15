@@ -1,0 +1,47 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - python setup.py build_ext --inplace
+    - cp /blob/gzhch/run_roberta_large.sh .
+    - cp /blob/gzhch/run_lora_glue.sh .
+
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+# search lora 
+search:
+  job_template:
+    name: lora_QNLI_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash run_lora_glue.sh QNLI {lr} 0 {r} 1
+      - bash run_lora_glue.sh QNLI {lr} 0 {r} 2
+      - bash run_lora_glue.sh QNLI {lr} 0 {r} 3
+      - bash run_lora_glue.sh QNLI {lr} 0 {r} 4
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-5, 5e-5, 1e-4, 2e-4]
+    - name: r
+      spec: discrete
+      values: [1, 5, 10, 50]

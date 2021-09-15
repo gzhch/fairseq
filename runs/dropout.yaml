@@ -1,0 +1,61 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itpscusv100cl
+  vc: resrchvc
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/grad_dropout.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+search:
+  job_template:
+    name: search_CoLA_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash grad_dropout.sh CoLA {lr} {p} {emb} 1
+      - bash grad_dropout.sh CoLA {lr} {p} {emb} 2
+      - bash grad_dropout.sh CoLA {lr} {p} {emb} 3
+      - bash grad_dropout.sh CoLA {lr} {p} {emb} 4
+  type: grid
+  max_trials: 30
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-5]
+    - name: p
+      spec: discrete
+      values: [1]
+    - name: emb
+      spec: discrete
+      values: [1]
+
+# #  baseline
+# search:
+#   job_template:
+#     name: search_CoLA_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash grad_dropout.sh CoLA 1e-5 1 1 {s}
+#   type: grid
+#   max_trials: 30
+#   params:
+#     - name: s
+#       spec: discrete
+#       values: [1, 2, 3, 4]

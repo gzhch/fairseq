@@ -1,0 +1,85 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - python setup.py build_ext --inplace
+    - cp /blob/gzhch/run_roberta_large.sh .
+    - cp /blob/gzhch/run_lora_glue.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+# search:
+#   job_template:
+#     name: search_CoLA_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash run_roberta_large.sh CoLA {lr} {p} 1
+#       - bash run_roberta_large.sh CoLA {lr} {p} 2
+#       - bash run_roberta_large.sh CoLA {lr} {p} 3
+#       - bash run_roberta_large.sh CoLA {lr} {p} 4
+#   type: grid
+#   max_trials: 32
+#   params:
+#     - name: lr
+#       spec: discrete
+#       values: [1e-4, 2e-4, 4e-4, 7e-4, 1e-3]
+#     - name: p
+#       spec: discrete
+#       values: [1e-3, 5e-3, 1e-2, 5e-2]
+# jobs:
+
+# - name: CoLA_first_ckpt
+#   sku: G1-V100-IB
+#   command:
+#   - cd code
+#   - bash layer_ablation.sh CoLA 5e-4 0.5 [0] 1
+#   submit_args:
+#     container_args:
+#       shm_size: 256g
+
+# - name: CoLA_last_ckpt
+#   sku: G1-V100-IB
+#   command:
+#   - cd code
+#   - bash layer_ablation.sh CoLA 5e-4 0.5 [-1] 1
+#   submit_args:
+#     container_args:
+#       shm_size: 256g
+
+# search lora 
+search:
+  job_template:
+    name: lora_CoLA_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash run_lora_glue.sh CoLA {lr} 0 {r} 1
+      - bash run_lora_glue.sh CoLA {lr} 0 {r} 2
+      - bash run_lora_glue.sh CoLA {lr} 0 {r} 3
+      - bash run_lora_glue.sh CoLA {lr} 0 {r} 4
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-5, 5e-5, 1e-4, 2e-4]
+    - name: r
+      spec: discrete
+      values: [1, 5, 10, 50]

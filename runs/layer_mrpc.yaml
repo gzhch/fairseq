@@ -1,0 +1,53 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itpscusv100cl
+  vc: resrchvc
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/layer_ablation.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+# jobs:
+#   - name: test
+#     sku: G1-V100-IB
+#     command:
+#     - ls
+
+search:
+  job_template:
+    name: search_MRPC_layer_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash layer_ablation.sh MRPC {lr} {p} [0] 1
+      - bash layer_ablation.sh MRPC {lr} {p} [-1] 1
+      - bash layer_ablation.sh MRPC {lr} {p} [0] 2
+      - bash layer_ablation.sh MRPC {lr} {p} [-1] 2
+      - bash layer_ablation.sh MRPC {lr} {p} [0] 3
+      - bash layer_ablation.sh MRPC {lr} {p} [-1] 3
+      - bash layer_ablation.sh MRPC {lr} {p} [0] 4
+      - bash layer_ablation.sh MRPC {lr} {p} [-1] 4
+  type: grid
+  max_trials: 20
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-4, 2e-4, 4e-4, 7e-4, 1e-3]
+    - name: p
+      spec: discrete
+      values: [0.05, 0.1, 0.5, 1]

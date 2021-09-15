@@ -1,0 +1,29 @@
+description: pretrain-roberta-base
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="pretrain"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/run_pretrain.sh .
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+jobs:
+- name: origin
+  sku: G4-V100-IB
+  command:
+  - cd code
+  - bash ./run_pretrain.sh

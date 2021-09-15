@@ -1,0 +1,48 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itpscusv100cl
+  vc: resrchvc
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/run_roberta_large.sh .
+    - cp /blob/gzhch/run.sh .
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+jobs:
+- name: MRPC_base_1e-5
+  sku: G1-V100-IB
+  command:
+  - cd code
+  - bash ./run_roberta_large.sh SST-2 1e-5 0 2 1
+
+- name: MRPC_base_2e-5
+  sku: G1-V100-IB
+  command:
+  - cd code
+  - bash ./run_roberta_large.sh SST-2 2e-5 0 2 1
+
+- name: MRPC_base_5e-5
+  sku: G1-V100-IB
+  command:
+  - cd code
+  - bash ./run_roberta_large.sh SST-2 5e-5 0 2 1
+
+- name: MRPC_base_1e-4
+  sku: G1-V100-IB
+  command:
+  - cd code
+  - bash ./run_roberta_large.sh SST-2 1e-4 0 2 1

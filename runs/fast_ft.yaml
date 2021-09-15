@@ -1,0 +1,81 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itpscusv100cl
+  vc: resrchvc
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="fast_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/fast_ft.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+search:
+  job_template:
+    name: search_CoLA_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash fast_ft.sh CoLA {lr} {p} {r} 1
+      - bash fast_ft.sh CoLA {lr} {p} {r} 2
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-4, 2e-4, 4e-4, 8e-5, 5e-5]
+    - name: p
+      spec: discrete
+      values: [1e-2, 5e-2]
+    - name: r
+      spec: discrete
+      values: [15, 50, 100]
+# jobs:
+
+# # - name: CoLA_ckpt
+# #   sku: G1-V100-IB
+# #   command:
+# #   - cd code
+# #   - bash run_roberta_large.sh CoLA 1e-4 5e-2 1
+# #   submit_args:
+# #     container_args:
+# #       shm_size: 256g
+
+# # - name: CoLA_base_ckpt
+# #   sku: G1-V100-IB
+# #   command:
+# #   - cd code
+# #   - bash run_roberta_large.sh CoLA 1e-5 0 1
+# #   submit_args:
+# #     container_args:
+# #       shm_size: 256g
+
+# - name: CoLA_first_ckpt
+#   sku: G1-V100-IB
+#   command:
+#   - cd code
+#   - bash layer_ablation.sh CoLA 5e-4 0.5 [0] 1
+#   submit_args:
+#     container_args:
+#       shm_size: 256g
+
+# - name: CoLA_last_ckpt
+#   sku: G1-V100-IB
+#   command:
+#   - cd code
+#   - bash layer_ablation.sh CoLA 5e-4 0.5 [-1] 1
+#   submit_args:
+#     container_args:
+#       shm_size: 256g

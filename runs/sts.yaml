@@ -1,0 +1,44 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itpscusv100cl
+  vc: resrchvc
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - cp /blob/gzhch/run_sts.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+search:
+  job_template:
+    name: search_STS-B_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash run_sts.sh STS-B {lr} {p} 1
+      - bash run_sts.sh STS-B {lr} {p} 2
+      - bash run_sts.sh STS-B {lr} {p} 3
+      - bash run_sts.sh STS-B {lr} {p} 4
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-4, 2e-4, 4e-4, 7e-4, 1e-3]
+    - name: p
+      spec: discrete
+      values: [1e-3, 5e-3, 1e-2, 5e-2]
+

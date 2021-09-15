@@ -1,0 +1,109 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - python setup.py build_ext --inplace
+    - cp /blob/gzhch/run_roberta_large.sh .
+    - cp /blob/gzhch/run_lora_glue.sh .
+    - cp /blob/gzhch/run_full_ft.sh .
+    - cp /blob/gzhch/run_rft.sh .
+    
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+# search:
+#   job_template:
+#     name: search_MNLI_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash run_roberta_large.sh MNLI {lr} {p} 2 1
+#       - bash run_roberta_large.sh MNLI {lr} {p} 2 2
+#   type: grid
+#   max_trials: 20
+#   params:
+#     - name: lr
+#       spec: discrete
+#       values: [1e-4, 2e-4, 4e-4, 5e-5, 8e-5]
+#     - name: p
+#       spec: discrete
+#       values: [1e-3, 5e-3, 1e-2, 5e-2]
+
+# # search lora 
+# search:
+#   job_template:
+#     name: lora_MRPC_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash run_lora_glue.sh MNLI {lr} 0 8 {s}
+#       - bash run_lora_glue.sh MNLI {lr} 0 16 {s}
+#   type: grid
+#   max_trials: 32
+#   params:
+#     - name: lr
+#       spec: discrete
+#       values: [1e-5, 5e-5, 1e-4, 2e-4, 5e-4]
+#     - name: s
+#       spec: discrete
+#       values: [1, 2, 3, 4]
+#     # - name: p
+#     #   spec: discrete
+#     #   values: [0, 1e-2, 5e-2]
+
+# search 3k
+search:
+  job_template:
+    name: search_MNLI_freezenorm_3k_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash run_rft.sh MNLI-3k {lr} {p} 1
+      - bash run_rft.sh MNLI-3k {lr} {p} 2
+      - bash run_rft.sh MNLI-3k {lr} {p} 3
+      - bash run_rft.sh MNLI-3k {lr} {p} 4
+  type: grid
+  max_trials: 20
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-4, 2e-4, 4e-4, 7e-4]
+    - name: p
+      spec: discrete
+      values: [1e-3, 5e-3, 1e-2, 5e-2]
+
+# # fft 3k 
+# search:
+#   job_template:
+#     name: fullft_MNLI_new_3k_{auto:s}
+#     sku: G1-V100-IB
+#     command:
+#       - cd code
+#       - bash run_full_ft.sh MNLI-3k {lr} {s}
+#       - bash run_full_ft.sh MNLI-3k {lr} {s}
+#       - bash run_full_ft.sh MNLI-3k {lr} {s}
+#       - bash run_full_ft.sh MNLI-3k {lr} {s}
+#   type: grid
+#   max_trials: 20
+#   params:
+#     - name: lr
+#       spec: discrete
+#       values: [1e-5, 2e-5, 3e-5, 4e-5]
+#     - name: s
+#       spec: discrete
+#       values: [1, 2, 3, 4]

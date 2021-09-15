@@ -1,0 +1,46 @@
+description: random fine-tune
+target:
+  service: amlk8s
+  name: itp-scus-v100
+  vc: AlexTScience
+  #queue: bonus
+
+
+environment:
+  image: mmdog/pytorch:pytorch-1.7-ib3
+  setup:
+    - export branch="random_ft"
+    - bash /blob/gzhch/download_code.sh
+    - cd code
+    - pip install --user ./
+    - python setup.py build_ext --inplace
+    - cp /blob/gzhch/run_superglue.sh .
+    - cp /blob/gzhch/run_lora_superglue.sh .
+
+storage:
+  blob:
+    storage_account_name: fastbertjp
+    container_name: large
+    mount_dir: /blob
+
+
+search:
+  job_template:
+    name: lora_MultiRC_{auto:s}
+    sku: G1-V100-IB
+    command:
+      - cd code
+      - bash ./run_lora_superglue.sh MultiRC {lr} {p} {r} 1
+      - bash ./run_lora_superglue.sh MultiRC {lr} {p} {r} 2
+  type: grid
+  max_trials: 32
+  params:
+    - name: lr
+      spec: discrete
+      values: [1e-5, 2e-5, 5e-5, 8e-5, 1e-4, 2e-4, 5e-4]
+    - name: r
+      spec: discrete
+      values: [32, 64]
+    - name: p
+      spec: discrete
+      values: [0]
