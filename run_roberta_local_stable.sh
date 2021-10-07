@@ -134,11 +134,11 @@ python train.py $DATA_PATH \
     --mask-type $TYPE \
     --freeze-emb \
     --restore-file $ROBERTA_PATH \
-    --max-positions 2200 \
+    --max-positions 512 \
     --max-sentences $BSZ \
     --batch-size $BSZ \
     --update-freq $UPDATE_FREQ \
-    --max-tokens 500 \
+    --max-tokens 2200 \
     --seed $SEED \
     --task sentence_prediction \
     --reset-optimizer --reset-dataloader --reset-meters \
