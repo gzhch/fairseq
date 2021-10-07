@@ -606,8 +606,10 @@ class MultiheadAttention(nn.Module):
                         items_to_add[prefix + "k_proj.bias_upd"] = state_dict[k_bias][dim : 2 * dim]
                         items_to_add[prefix + "v_proj.bias_upd"] = state_dict[k_bias][2 * dim :]
             elif (self.rft > 0 or self.l1_regularization > 0) and k.endswith(prefix + "out_proj.weight"):
-                items_to_add[prefix + "out_proj.weight_upd"] = state_dict[k]
-                items_to_add[prefix + "out_proj.bias_upd"] = state_dict[prefix + "out_proj.bias"]
+                exist = prefix + "out_proj.weight_upd"
+                if not exist in state_dict.keys():
+                    items_to_add[prefix + "out_proj.weight_upd"] = state_dict[k]
+                    items_to_add[prefix + "out_proj.bias_upd"] = state_dict[prefix + "out_proj.bias"]
                 
 
 

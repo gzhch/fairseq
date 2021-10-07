@@ -179,21 +179,25 @@ class TransformerEncoderLayer(nn.Module):
         """
         if self.rft > 0 or self.l1_regularization > 0:
             prefix = name + "." if name != "" else ""
-            state_dict[prefix + "fc1.weight_upd"] = state_dict[prefix + "fc1.weight"]
-            state_dict[prefix + "fc2.weight_upd"] = state_dict[prefix + "fc2.weight"]
-            state_dict[prefix + "fc1.bias_upd"] = state_dict[prefix + "fc1.bias"]
-            state_dict[prefix + "fc2.bias_upd"] = state_dict[prefix + "fc2.bias"]
+            exist = prefix + "fc1.weight_upd"
+            if not exist in state_dict.keys():
+                state_dict[prefix + "fc1.weight_upd"] = state_dict[prefix + "fc1.weight"]
+                state_dict[prefix + "fc2.weight_upd"] = state_dict[prefix + "fc2.weight"]
+                state_dict[prefix + "fc1.bias_upd"] = state_dict[prefix + "fc1.bias"]
+                state_dict[prefix + "fc2.bias_upd"] = state_dict[prefix + "fc2.bias"]
             # for k in ["fc1.weight", "fc2.weight", "fc1.bias", "fc2.bias"]:
             #     n = prefix + k
             #     if n in state_dict.keys():
             #         del state_dict[n]
         if self.l1_regularization > 0:
             prefix = name + "." if name != "" else ""
-            state_dict[prefix + "self_attn_layer_norm.weight_upd"] = state_dict[prefix + "self_attn_layer_norm.weight"]
-            state_dict[prefix + "final_layer_norm.weight_upd"] = state_dict[prefix + "final_layer_norm.weight"]
-            state_dict[prefix + "self_attn_layer_norm.bias_upd"] = state_dict[prefix + "self_attn_layer_norm.bias"]
-            state_dict[prefix + "final_layer_norm.bias_upd"] = state_dict[prefix + "final_layer_norm.bias"]
-         
+            exist = prefix + "self_attn_layer_norm.weight_upd"
+            if not exist in state_dict.keys():
+                state_dict[prefix + "self_attn_layer_norm.weight_upd"] = state_dict[prefix + "self_attn_layer_norm.weight"]
+                state_dict[prefix + "final_layer_norm.weight_upd"] = state_dict[prefix + "final_layer_norm.weight"]
+                state_dict[prefix + "self_attn_layer_norm.bias_upd"] = state_dict[prefix + "self_attn_layer_norm.bias"]
+                state_dict[prefix + "final_layer_norm.bias_upd"] = state_dict[prefix + "final_layer_norm.bias"]
+            
     def forward(
         self,
         x,

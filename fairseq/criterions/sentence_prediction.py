@@ -82,7 +82,7 @@ class SentencePredictionCriterion(FairseqCriterion):
         else:
             logging_output.update(x=logits.detach().cpu().numpy())
             logging_output.update(y=targets.detach().cpu().numpy())
-
+            
         return loss, sample_size, logging_output
 
     @staticmethod
