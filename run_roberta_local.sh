@@ -1,18 +1,24 @@
 TASK=$1
 LR=$2
-RFT=$3
-LORA=$4
+RFT=0
+LORA=0
 TYPE=2
-SEED=$5
+L1=$3
+SEED=$4
 GRADED=linear
+PREFIX=l1ft
 
 N_EPOCH=30
 WARMUP_RATIO=15
 BSZ=16        # Batch size.
+UPDATE_FREQ=1
 MODEL=large
 
-ROBERTA_PATH=../transformer/models/roberta.$MODEL/model.pt
-DATA_PATH=../FastBERT/examples/roberta/glue/$TASK-bin/
+#ROBERTA_PATH=../logs/large/MRPC/l1ft-1e-5-0.001-1/checkpoint_best.pt
+ROBERTA_PATH=/share2/gzhch/models/roberta.$MODEL/model.pt
+DATA_PATH=/share2/gzhch/data/glue/$TASK-bin/
+#ROBERTA_PATH=../transformer/models/roberta.$MODEL/model.pt
+#DATA_PATH=../FastBERT/examples/roberta/glue/$TASK-bin/
 #DATA_PATH=./$TASK-bin/
 # ROBERTA_PATH=/blob/gzhch/model/roberta.$MODEL/model.pt
 # DATA_PATH=/blob/gzhch/data/glue/$TASK-bin/
@@ -25,12 +31,18 @@ if [ "$TASK" = "MNLI" ]
 then
 N_CLASSES=3
 EPOCH_ITER=12471
+N_EPOCH=4
+BSZ=4
+UPDATE_FREQ=2
 task_type=LARGE
 WARMUP_RATIO=60
 fi
 
 if [ "$TASK" = "QNLI" ]
 then
+N_EPOCH=10
+BSZ=4
+UPDATE_FREQ=2
 EPOCH_ITER=3312
 task_type=LARGE
 WARMUP_RATIO=60
@@ -38,6 +50,9 @@ fi
 
 if [ "$TASK" = "QQP" ]
 then
+N_EPOCH=10
+BSZ=4
+UPDATE_FREQ=4
 EPOCH_ITER=11391
 task_type=LARGE
 WARMUP_RATIO=15
@@ -45,9 +60,12 @@ fi
 
 if [ "$TASK" = "SST-2" ]
 then
+N_EPOCH=10
+BSZ=4
+UPDATE_FREQ=4
 EPOCH_ITER=2105
 task_type=LARGE
-WARMUP_RATIO=60
+WARMUP_RATIO=30
 fi
 
 if [ "$TASK" = "MRPC" ]
@@ -58,6 +76,8 @@ fi
 if [ "$TASK" = "RTE" ]
 then
 EPOCH_ITER=100
+BSZ=4
+UPDATE_FREQ=2
 fi
 
 if [ "$TASK" = "CoLA" ]
@@ -96,8 +116,7 @@ EPOCH_ITER=100
 fi
 
 EPOCH_ITER=$((EPOCH_ITER*2)) # expand to itr for bsz=16
-BSZ_EXPAND=$((BSZ/16))
-EPOCH_ITER=$((EPOCH_ITER/BSZ_EXPAND))
+EPOCH_ITER=$((EPOCH_ITER*16/BSZ))
 TOTAL_STEPS=$((EPOCH_ITER*N_EPOCH))
 WARMUP_STEPS=$((TOTAL_STEPS/WARMUP_RATIO))
 VALIDATE_INTERVAL=$((EPOCH_ITER/2))
@@ -105,7 +124,8 @@ VALIDATE_INTERVAL=$((EPOCH_ITER/2))
 
 
 #OUTPUT_PATH=/blob/gzhch/logs/${MODEL}/${TASK}/$N_EPOCH-$WARMUP_RATIO-$BSZ-$LR-$SEED
-OUTPUT_PATH=tmp/out
+OUTPUT_PATH=/home/gzhch/logs/${MODEL}/${TASK}/$PREFIX-$LR-$L1-$SEED
+#OUTPUT_PATH=tmp/out
 mkdir -p $OUTPUT_PATH
 echo $OUTPUT_PATH
 # if [ -e $OUTPUT_PATH/train_log.txt ]; then
@@ -117,7 +137,7 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
-    --l1-regularization 0.001 \
+    --l1-regularization $L1 \
     --graded-rft $GRADED \
     --lora $LORA \
     --random-ft $RFT \
@@ -126,7 +146,9 @@ python train.py $DATA_PATH \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \
     --max-sentences $BSZ \
-    --max-tokens 2200 \
+    --batch-size $BSZ \
+    --update-freq $UPDATE_FREQ \
+    --max-tokens 500 \
     --seed $SEED \
     --task sentence_prediction \
     --reset-optimizer --reset-dataloader --reset-meters \
@@ -139,7 +161,6 @@ python train.py $DATA_PATH \
     --weight-decay 0 --optimizer adam --adam-betas "(0.9, 0.98)" --adam-eps 1e-06 \
     --clip-norm 0.0 \
     --lr-scheduler polynomial_decay --lr $LR --total-num-update $TOTAL_STEPS --warmup-updates $WARMUP_STEPS \
-    --fp16 --fp16-init-scale 4 --threshold-loss-scale 1 --fp16-scale-window 128 \
     --max-epoch $N_EPOCH \
     --find-unused-parameters \
     --best-checkpoint-metric $METRIC --maximize-best-checkpoint-metric \
@@ -152,3 +173,4 @@ python train.py $DATA_PATH \
 
 #    --regression-target \
 #    --no-save \
+#    --fp16 --fp16-init-scale 4 --threshold-loss-scale 1 --fp16-scale-window 128 \
