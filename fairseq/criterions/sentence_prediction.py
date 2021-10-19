@@ -83,7 +83,16 @@ class SentencePredictionCriterion(FairseqCriterion):
             logging_output.update(x=logits.detach().cpu().numpy())
             logging_output.update(y=targets.detach().cpu().numpy())
             
+        k0 = model.encoder.sentence_encoder.layers[0].self_attn.k_proj
+        k31 = model.encoder.sentence_encoder.layers[-1].self_attn.k_proj
+        logging_output.update(k0=self.calc_delta(k0))
+        logging_output.update(k31=self.calc_delta(k31))
+
         return loss, sample_size, logging_output
+
+    def calc_delta(self, m):
+        d = m.weight_upd - m.weight
+        return torch.abs(d).sum().detach().cpu().numpy()
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -92,6 +101,9 @@ class SentencePredictionCriterion(FairseqCriterion):
         ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         nsentences = sum(log.get("nsentences", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+        
+        metrics.log_scalar('k0', logging_outputs[-1].get('k0', -1), round=3)
+        metrics.log_scalar('k31', logging_outputs[-1].get('k31', -1), round=3)
 
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3

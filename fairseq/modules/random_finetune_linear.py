@@ -1,4 +1,5 @@
 import math
+from typing import Tuple
 import torch 
 import torch.nn as nn
 import numpy as np
@@ -215,3 +216,12 @@ class L1Linear(nn.Module):
         return 'in_features={}, out_features={}, bias={}'.format(
             self.in_features, self.out_features, self.bias_upd is not None
         )
+
+    def l1_update(self, step_size):
+        delta_w = self.weight_upd.data - self.weight.data
+        delta_b = self.bias_upd.data - self.bias.data
+        delta_w = delta_w * (delta_w < step_size) + step_size * (delta_w <= step_size)
+        delta_b = delta_b * (delta_b < step_size) + step_size * (delta_b <= step_size)
+        self.weight_upd.data -= delta_w
+        self.bias_upd.data -= delta_b
+

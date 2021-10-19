@@ -10,6 +10,7 @@ from argparse import Namespace
 from typing import Any, Callable, Dict, List
 
 import torch
+from torch import optim
 from fairseq import metrics, search, tokenizer, utils
 from fairseq.data import Dictionary, FairseqDataset, data_utils, encoders, iterators
 from fairseq.dataclass import FairseqDataclass
@@ -513,17 +514,24 @@ class FairseqTask(object):
         return loss, sample_size, logging_output
 
     def optimizer_step(self, optimizer, model, update_num, l1=0):
-        if l1:
-            l1_loss = 0
-            l1_penalty = torch.nn.L1Loss(size_average=False)
-            for i in model.encoder.sentence_encoder.layers:
-                l1_loss += i.calc_l1()
-            with torch.autograd.profiler.record_function("backward"):
-                optimizer.backward(l1_loss * l1)
-            #print(l1_loss)
-            del l1_loss
         optimizer.step()
 
+        # if l1:
+        #     l1_loss = 0
+        #     l1_penalty = torch.nn.L1Loss(size_average=False)
+        #     for i in model.encoder.sentence_encoder.layers:
+        #         l1_loss += i.calc_l1()
+        #     with torch.autograd.profiler.record_function("backward"):
+        #         optimizer.backward(l1_loss * l1)
+        #     #print(l1_loss)
+        #     del l1_loss
+
+        if l1:
+            lr = optimizer.get_lr()
+            for i in model.encoder.sentence_encoder.layers:
+                i.l1_update(lr * l1)
+
+    
     def build_dataset_for_inference(
         self, src_tokens: List[torch.Tensor], src_lengths: List[int], **kwargs
     ) -> torch.utils.data.Dataset:

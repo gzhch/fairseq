@@ -75,6 +75,14 @@ class L1LayerNorm(nn.Module):
         return '{normalized_shape}, eps={eps}, ' \
             'elementwise_affine={elementwise_affine}'.format(**self.__dict__)
 
+    def l1_update(self, step_size):
+        delta_w = self.weight_upd.data - self.weight.data
+        delta_b = self.bias_upd.data - self.bias.data
+        delta_w = delta_w * (delta_w < step_size) + step_size * (delta_w <= step_size)
+        delta_b = delta_b * (delta_b < step_size) + step_size * (delta_b <= step_size)
+        self.weight_upd.data -= delta_w
+        self.bias_upd.data -= delta_b
+
 class Fp32LayerNorm(nn.LayerNorm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

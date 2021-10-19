@@ -254,6 +254,16 @@ class TransformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.final_layer_norm(x)
         return x
+    
+    def l1_update(self, step_size):
+        self.fc1.l1_update(step_size)
+        self.fc2.l1_update(step_size)
+        self.self_attn.k_proj.l1_update(step_size)
+        self.self_attn.v_proj.l1_update(step_size)
+        self.self_attn.q_proj.l1_update(step_size)
+        self.self_attn.out_proj.l1_update(step_size)
+        self.self_attn_layer_norm.l1_update(step_size)
+        self.final_layer_norm.l1_update(step_size)
 
     def calc_l1(self):
         l1_loss = 0
