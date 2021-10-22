@@ -1,12 +1,9 @@
 TASK=$1
 LR=$2
-RFT=0
-LORA=0
-TYPE=2
-L1=$3
-SEED=$4
-GRADED=linear
-PREFIX=l1ft
+SEED=$3
+
+SUBNET_PATH=./subnet.pkl
+PREFIX=subnet
 
 N_EPOCH=30
 WARMUP_RATIO=15
@@ -124,7 +121,7 @@ VALIDATE_INTERVAL=$((EPOCH_ITER/2))
 
 
 #OUTPUT_PATH=/blob/gzhch/logs/${MODEL}/${TASK}/$N_EPOCH-$WARMUP_RATIO-$BSZ-$LR-$SEED
-OUTPUT_PATH=/home/gzhch/logs/${MODEL}/${TASK}/$PREFIX-$LR-$L1-$SEED
+OUTPUT_PATH=/home/gzhch/logs/${MODEL}/${TASK}/$PREFIX-$LR-$SEED
 #OUTPUT_PATH=tmp/out
 mkdir -p $OUTPUT_PATH
 echo $OUTPUT_PATH
@@ -137,11 +134,9 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
-    --l1-regularization $L1 \
-    --graded-rft $GRADED \
-    --lora $LORA \
-    --random-ft $RFT \
-    --mask-type $TYPE \
+    --subnet-path $SUBNET_PATH \
+    --lora 0 \
+    --random-ft 0 \
     --freeze-emb \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \

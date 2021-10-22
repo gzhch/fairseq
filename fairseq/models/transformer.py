@@ -32,6 +32,7 @@ from fairseq.modules.checkpoint_activations import checkpoint_wrapper
 from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from torch import Tensor
 
+import pickle
 
 DEFAULT_MAX_SOURCE_POSITIONS = 1024
 DEFAULT_MAX_TARGET_POSITIONS = 1024
@@ -393,6 +394,8 @@ class TransformerEncoder(FairseqEncoder):
         else:
             self.quant_noise = None
 
+        self.load_subnets(args.subnet_path)
+
         if self.encoder_layerdrop > 0.0:
             self.layers = LayerDropModuleList(p=self.encoder_layerdrop)
         else:
@@ -407,8 +410,14 @@ class TransformerEncoder(FairseqEncoder):
         else:
             self.layer_norm = None
 
+    def load_subnets(self, path):
+        with open(path, 'rb') as f:
+            self.subnets = pickle.load(f)
+
     def build_encoder_layer(self, args, i):
-        layer = TransformerEncoderLayer(args, i)
+        subnet = {k : v[i] for k, v in self.subnets.items()}
+
+        layer = TransformerEncoderLayer(args, i, subnet)
         checkpoint = getattr(args, "checkpoint_activations", False)
         if checkpoint:
             offload_to_cpu = getattr(args, "offload_activations", False)

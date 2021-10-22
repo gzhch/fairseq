@@ -1034,7 +1034,12 @@ class ModelConfig(FairseqDataclass):
     graded_rft: str = field(
         default="const", metadata={"help": ""},
     )
-
+    fft: bool = field(
+        default=False, metadata={"help": "full fine-tune"}
+    )
+    subnet_path: str = field(
+        default="", metadata={"help": ""},
+    )
 
 @dataclass
 class FairseqConfig(FairseqDataclass):

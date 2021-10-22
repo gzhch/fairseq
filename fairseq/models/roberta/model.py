@@ -560,6 +560,8 @@ def base_architecture(args):
     args.graded_rft = getattr(args, "graded_rft", 'const')
     args.l1_regularization = getattr(args, "l1_regularization", 0)
 
+    args.fft = getattr(args, "fft", False)
+    args.subnet_path = getattr(args, "subnet_path", "")
 
 
 @register_model_architecture("roberta", "roberta_prenorm")

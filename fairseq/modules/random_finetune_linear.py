@@ -225,3 +225,47 @@ class L1Linear(nn.Module):
         self.weight_upd.data -= delta_w
         self.bias_upd.data -= delta_b
 
+class MaskedLinear(nn.Module):
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, cols: Tuple = [], rows: Tuple = []) -> None:
+        super(MaskedLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        
+        self.cols = cols
+        self.rows = rows
+        self.mask = torch.zeros([out_features, in_features], requires_grad=False).cuda()
+        self.mask.index_fill_(1, torch.LongTensor(cols).cuda(), 1)
+        self.mask.index_fill_(1, torch.LongTensor(rows).cuda(), 0)
+
+        self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
+        self.weight_upd = Parameter(torch.Tensor(out_features, in_features), requires_grad=True)
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features), requires_grad=False)
+            self.bias_upd = Parameter(torch.Tensor(out_features), requires_grad=True)
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.kaiming_uniform_(self.weight_upd, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias_upd is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_upd)
+            bound = 1 / math.sqrt(fan_in)
+            nn.init.uniform_(self.bias_upd, -bound, bound)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: Tensor) -> Tensor:
+        weight = self.weight * (1 - self.mask) + self.weight_upd * self.mask
+        bias = self.bias_upd
+        return F.linear(input, weight, bias)
+
+    def extra_repr(self) -> str:
+        return 'in_features={}, out_features={}, bias={}, cols={}, rows={}'.format(
+            self.in_features, self.out_features, self.bias_upd is not None, len(self.cols), len(self.rows)
+        )

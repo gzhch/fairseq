@@ -13,7 +13,7 @@ from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
 from torch import Tensor
-from fairseq.modules.random_finetune_linear import RFTLinear, NogradLinear, LoRALinear, RFTLoRALinear, L1Linear
+from fairseq.modules.random_finetune_linear import MaskedLinear
 
 class TransformerEncoderLayer(nn.Module):
     """Encoder layer block.
@@ -30,7 +30,7 @@ class TransformerEncoderLayer(nn.Module):
         args (argparse.Namespace): parsed command-line arguments
     """
 
-    def __init__(self, args, layer_id=-1):
+    def __init__(self, args, layer_id=-1, subnet={}):
         super().__init__()
         self.args = args
 
@@ -43,7 +43,7 @@ class TransformerEncoderLayer(nn.Module):
         self.graded_rft = getattr(args, "graded_rft", 'const')
         self.l1_regularization = getattr(args, "l1_regularization", 0)
         self.l1_penalty = nn.L1Loss(size_average=False)
-
+        
         if self.graded_rft == 'linear':
             self.rft = self.rft * (self.layer_id + 1) / self.max_layer
         if (self.ft_layer != []) and not (self.layer_id in self.ft_layer or (self.layer_id - self.max_layer) in self.ft_layer):
@@ -51,6 +51,8 @@ class TransformerEncoderLayer(nn.Module):
                 self.rft = -1
         self.lora = getattr(args, "lora", 0)
 
+        self.subnet = subnet
+        self.fft = getattr(args, "fft", False)
 
         self.embed_dim = args.encoder_embed_dim
         self.quant_noise = getattr(args, "quant_noise_pq", 0)
@@ -91,54 +93,21 @@ class TransformerEncoderLayer(nn.Module):
         self.final_layer_norm = LayerNorm(self.embed_dim, export=export, l1=self.l1_regularization)
 
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
-        if self.rft > 0 and self.lora == 0:
+        if self.fft:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft > 0 and self.lora > 0:
-            return quant_noise(
-                RFTLoRALinear(input_dim, output_dim, prob=self.rft, rank=self.lora), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft == 0 and self.lora > 0:
-            return quant_noise(
-                LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft == -1 or self.lora == -1:
-            return quant_noise(
-                NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
-            )
-        elif self.l1_regularization > 0:
-            return quant_noise(
-                L1Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+                nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
-            nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            MaskedLinear(input_dim, output_dim, cols=self.subnet['FC1']), p=q_noise, block_size=qn_block_size
         )
 
-
     def build_fc2(self, input_dim, output_dim, q_noise, qn_block_size):
-        if self.rft > 0 and self.lora == 0:
+        if self.fft:
             return quant_noise(
-                RFTLinear(input_dim, output_dim, prob=self.rft, mask_type=self.mask_type, dynamic=self.grad_dropout), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft > 0 and self.lora > 0:
-            return quant_noise(
-                RFTLoRALinear(input_dim, output_dim, prob=self.rft, rank=self.lora), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft == 0 and self.lora > 0:
-            return quant_noise(
-                LoRALinear(input_dim, output_dim, rank=self.lora), p=q_noise, block_size=qn_block_size
-            )
-        elif self.rft == -1 or self.lora == -1:
-            return quant_noise(
-                NogradLinear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
-            )
-        elif self.l1_regularization > 0:
-            return quant_noise(
-                L1Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+                nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
-            nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
+            MaskedLinear(input_dim, output_dim, rows=self.subnet['FC2']), p=q_noise, block_size=qn_block_size
         )
 
 
@@ -150,11 +119,8 @@ class TransformerEncoderLayer(nn.Module):
             self_attention=True,
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
-            random_ft=self.rft,
-            mask_type=self.mask_type,
-            grad_dropout=self.grad_dropout,
-            lora=self.lora,
-            l1_regularization=self.l1_regularization
+            subnet=self.subnet,
+            fft=self.fft,
         )
 
     def residual_connection(self, x, residual):
@@ -177,7 +143,7 @@ class TransformerEncoderLayer(nn.Module):
         Add support for RFT:
         + fc1.weight_upd ...
         """
-        if self.rft > 0 or self.l1_regularization > 0:
+        if self.rft > 0 or self.l1_regularization > 0 or not self.fft:
             prefix = name + "." if name != "" else ""
             exist = prefix + "fc1.weight_upd"
             if not exist in state_dict.keys():
