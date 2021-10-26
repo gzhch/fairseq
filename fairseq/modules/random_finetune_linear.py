@@ -238,9 +238,15 @@ class MaskedLinear(nn.Module):
         
         self.cols = cols
         self.rows = rows
+
+        self.update_bias = False
+        if in_features in cols:
+            self.update_bias = True
+            self.cols = [i for i in cols if i != in_features]
+
         self.mask = torch.zeros([out_features, in_features], requires_grad=False).cuda()
-        self.mask.index_fill_(1, torch.LongTensor(cols).cuda(), 1)
-        self.mask.index_fill_(1, torch.LongTensor(rows).cuda(), 0)
+        self.mask.index_fill_(1, torch.LongTensor(self.cols).cuda(), 1)
+        self.mask.index_fill_(1, torch.LongTensor(self.rows).cuda(), 0)
 
         self.weight = Parameter(torch.Tensor(out_features, in_features), requires_grad=False)
         self.weight_upd = Parameter(torch.Tensor(out_features, in_features), requires_grad=True)
@@ -262,10 +268,13 @@ class MaskedLinear(nn.Module):
 
     def forward(self, input: Tensor) -> Tensor:
         weight = self.weight * (1 - self.mask) + self.weight_upd * self.mask
-        bias = self.bias_upd
+        if self.update_bias:
+            bias = self.bias_upd
+        else:
+            bias = self.bias
         return F.linear(input, weight, bias)
 
     def extra_repr(self) -> str:
-        return 'in_features={}, out_features={}, bias={}, cols={}, rows={}'.format(
-            self.in_features, self.out_features, self.bias_upd is not None, len(self.cols), len(self.rows)
+        return 'in_features={}, out_features={}, update_bias={}, cols={}, rows={}'.format(
+            self.in_features, self.out_features, self.update_bias, len(self.cols), len(self.rows)
         )
