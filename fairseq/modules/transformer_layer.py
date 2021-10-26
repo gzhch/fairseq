@@ -107,7 +107,7 @@ class TransformerEncoderLayer(nn.Module):
                 nn.Linear(input_dim, output_dim), p=q_noise, block_size=qn_block_size
             )
         return quant_noise(
-            MaskedLinear(input_dim, output_dim, rows=self.subnet['FC2']), p=q_noise, block_size=qn_block_size
+            MaskedLinear(input_dim, output_dim, cols=self.subnet['FC2']), p=q_noise, block_size=qn_block_size
         )
 
 
