@@ -3,25 +3,18 @@ LR=$2
 RFT=0
 LORA=0
 TYPE=2
-L1=$3
-SEED=$4
-GRADED=linear
-PREFIX=l1ft
+SEED=$3
+
+PREFIX=fullft
 
 N_EPOCH=30
 WARMUP_RATIO=15
 BSZ=16        # Batch size.
 UPDATE_FREQ=1
-MODEL=large
+MODEL=base
 
-#ROBERTA_PATH=../logs/large/MRPC/l1ft-1e-5-0.001-1/checkpoint_best.pt
 ROBERTA_PATH=/share2/gzhch/models/roberta.$MODEL/model.pt
 DATA_PATH=/share2/gzhch/data/glue/$TASK-bin/
-#ROBERTA_PATH=../transformer/models/roberta.$MODEL/model.pt
-#DATA_PATH=../FastBERT/examples/roberta/glue/$TASK-bin/
-#DATA_PATH=./$TASK-bin/
-# ROBERTA_PATH=/blob/gzhch/model/roberta.$MODEL/model.pt
-# DATA_PATH=/blob/gzhch/data/glue/$TASK-bin/
 
 METRIC=accuracy
 N_CLASSES=2
@@ -33,7 +26,7 @@ N_CLASSES=3
 EPOCH_ITER=12471
 N_EPOCH=4
 BSZ=4
-UPDATE_FREQ=2
+UPDATE_FREQ=4
 task_type=LARGE
 WARMUP_RATIO=60
 fi
@@ -42,7 +35,7 @@ if [ "$TASK" = "QNLI" ]
 then
 N_EPOCH=10
 BSZ=4
-UPDATE_FREQ=2
+UPDATE_FREQ=4
 EPOCH_ITER=3312
 task_type=LARGE
 WARMUP_RATIO=60
@@ -70,6 +63,8 @@ fi
 
 if [ "$TASK" = "MRPC" ]
 then
+BSZ=16
+UPDATE_FREQ=1
 EPOCH_ITER=115
 fi
 
@@ -77,13 +72,15 @@ if [ "$TASK" = "RTE" ]
 then
 EPOCH_ITER=100
 BSZ=4
-UPDATE_FREQ=2
+UPDATE_FREQ=4
 fi
 
 if [ "$TASK" = "CoLA" ]
 then
 METRIC=mcc
 EPOCH_ITER=268
+BSZ=4
+UPDATE_FREQ=4
 fi
 
 if [ "$TASK" = "STS-B" ]
@@ -116,16 +113,15 @@ EPOCH_ITER=100
 fi
 
 EPOCH_ITER=$((EPOCH_ITER*2)) # expand to itr for bsz=16
-EPOCH_ITER=$((EPOCH_ITER*16/BSZ))
+EPOCH_ITER=$((EPOCH_ITER*16/(BSZ*UPDATE_FREQ)))
 TOTAL_STEPS=$((EPOCH_ITER*N_EPOCH))
 WARMUP_STEPS=$((TOTAL_STEPS/WARMUP_RATIO))
 VALIDATE_INTERVAL=$((EPOCH_ITER/2))
 
 
 
-#OUTPUT_PATH=/blob/gzhch/logs/${MODEL}/${TASK}/$N_EPOCH-$WARMUP_RATIO-$BSZ-$LR-$SEED
-OUTPUT_PATH=/home/gzhch/logs/${MODEL}/${TASK}/$PREFIX-$LR-$L1-$SEED
-#OUTPUT_PATH=tmp/out
+OUTPUT_PATH=/home/gzhch/logs/${MODEL}/${TASK}/$PREFIX-$LR-$SEED
+# OUTPUT_PATH=tmp/out
 mkdir -p $OUTPUT_PATH
 echo $OUTPUT_PATH
 # if [ -e $OUTPUT_PATH/train_log.txt ]; then
@@ -137,18 +133,15 @@ echo $OUTPUT_PATH
 
 
 python train.py $DATA_PATH \
-    --l1-regularization $L1 \
-    --graded-rft $GRADED \
-    --lora $LORA \
-    --random-ft $RFT \
-    --mask-type $TYPE \
     --freeze-emb \
+    --lora 0 \
+    --random-ft 0 \
     --restore-file $ROBERTA_PATH \
     --max-positions 512 \
     --max-sentences $BSZ \
+    --max-tokens 2200 \
     --batch-size $BSZ \
     --update-freq $UPDATE_FREQ \
-    --max-tokens 500 \
     --seed $SEED \
     --task sentence_prediction \
     --reset-optimizer --reset-dataloader --reset-meters \
@@ -168,9 +161,9 @@ python train.py $DATA_PATH \
     --num-workers 0 \
     --save-dir $OUTPUT_PATH \
     --no-progress-bar \
-    --log-interval 100 \
-    --no-epoch-checkpoints --no-last-checkpoints | tee $OUTPUT_PATH/train_log.txt; #    --train_bias;
+    --log-interval 100  | tee $OUTPUT_PATH/train_log.txt; #    --train_bias;
 
 #    --regression-target \
 #    --no-save \
+#    --no-epoch-checkpoints --no-last-checkpoint
 #    --fp16 --fp16-init-scale 4 --threshold-loss-scale 1 --fp16-scale-window 128 \
