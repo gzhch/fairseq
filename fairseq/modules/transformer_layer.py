@@ -203,6 +203,7 @@ class TransformerEncoderLayer(nn.Module):
         x,
         encoder_padding_mask: Optional[Tensor],
         attn_mask: Optional[Tensor] = None,
+        ft_emb: Optional[Tensor] = None,
     ):
         """
         Args:
@@ -249,6 +250,12 @@ class TransformerEncoderLayer(nn.Module):
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
         x = self.fc2(x)
+
+        if ft_emb is not None:
+            # print(x.shape)
+            # print(ft_emb.shape)
+            x = x + ft_emb
+
         x = self.dropout_module(x)
         x = self.residual_connection(x, residual)
         if not self.normalize_before:

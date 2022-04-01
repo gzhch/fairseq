@@ -184,6 +184,20 @@ class RobertaModel(FairseqEncoderModel):
                 "--offload-activations are passed."
             )
         )
+        # args for ft_emb
+        parser.add_argument(
+            "--ft-emb",
+            action="store_true",
+            default=False,
+            help="Apply ft_emb",
+        )
+        parser.add_argument(
+            "--layernorm-embedding-ft",
+            action="store_true",
+            default=False,
+            help="Apply layer normalization to ft_emb",
+        )
+        
 
     @classmethod
     def build_model(cls, args, task):

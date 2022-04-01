@@ -1016,7 +1016,7 @@ class ModelConfig(FairseqDataclass):
     ft_layer: List[int] = field(
         default_factory=lambda: [],
         metadata={
-            "help": "which layers should be finetuned"
+            "help": "which layers should be freezed"
         }
     )
     grad_dropout: bool = field(

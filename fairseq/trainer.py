@@ -311,7 +311,10 @@ class Trainer(object):
                     return True
                 return False
             else:
-                if not p.requires_grad or (('embed' in n) and self.cfg.optimization.freeze_emb):
+                #if not p.requires_grad or (('embed' in n) and self.cfg.optimization.freeze_emb):
+                if not p.requires_grad:
+                    return False
+                if ('embed' in n) and self.cfg.optimization.freeze_emb:
                     return False
                 if 'layers.' in n:
                     for i in self.cfg.model.ft_layer:
@@ -320,7 +323,9 @@ class Trainer(object):
                             return False
                     if self.cfg.optimization.freeze_norm and ('layer_norm' in n):
                         return False
-                    return True
+                print(n, p.requires_grad)
+                return True
+
         params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
         params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
     

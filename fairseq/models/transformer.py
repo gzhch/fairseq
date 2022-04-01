@@ -378,11 +378,33 @@ class TransformerEncoder(FairseqEncoder):
             if not args.no_token_positional_embeddings
             else None
         )
+
+        self.embed_ft = (
+            # nn.Embedding(
+            #     len(dictionary), 
+            #     args.encoder_embed_dim, 
+            #     dictionary.pad(),
+            # )
+            PositionalEmbedding(
+                args.max_source_positions,
+                embed_dim,
+                self.padding_idx,
+                learned=args.encoder_learned_pos,
+            )
+            if args.ft_emb
+            else None
+        )
+
         export = getattr(args, "export", False)
         if getattr(args, "layernorm_embedding", False):
             self.layernorm_embedding = LayerNorm(embed_dim, export=export)
         else:
             self.layernorm_embedding = None
+
+        if getattr(args, "layernorm_embedding_ft", False):
+            self.layernorm_embedding_ft = LayerNorm(embed_dim, export=export)
+        else:
+            self.layernorm_embedding_ft = None
 
         if not args.adaptive_input and args.quant_noise_pq > 0:
             self.quant_noise = apply_quant_noise_(
@@ -406,6 +428,19 @@ class TransformerEncoder(FairseqEncoder):
             self.layer_norm = LayerNorm(embed_dim, export=export)
         else:
             self.layer_norm = None
+        
+        if args.ft_emb:
+            self.freeze_params()
+
+    def freeze_params(self):
+        self.embed_tokens.requires_grad_(requires_grad=False)
+        if self.embed_positions is not None:
+            self.embed_positions.requires_grad_(requires_grad=False)
+        if self.layernorm_embedding is not None:
+            self.layernorm_embedding.requires_grad_(requires_grad=False)
+        self.layers.requires_grad_(requires_grad=False)
+        if self.layer_norm is not None:
+            self.layer_norm.requires_grad_(requires_grad=False)
 
     def build_encoder_layer(self, args, i):
         layer = TransformerEncoderLayer(args, i)
@@ -437,7 +472,15 @@ class TransformerEncoder(FairseqEncoder):
         x = self.dropout_module(x)
         if self.quant_noise is not None:
             x = self.quant_noise(x)
-        return x, embed
+
+        if self.embed_ft is not None:
+            embed_ft = self.embed_ft(src_tokens)
+            if self.layernorm_embedding_ft is not None:
+                embed_ft = self.layernorm_embedding_ft(embed_ft)
+        else:
+            embed_ft = None
+
+        return x, embed, embed_ft
 
     def forward(
         self,
@@ -511,8 +554,10 @@ class TransformerEncoder(FairseqEncoder):
         encoder_padding_mask = src_tokens.eq(self.padding_idx)
         has_pads = src_tokens.device.type == "xla" or encoder_padding_mask.any()
 
-        x, encoder_embedding = self.forward_embedding(src_tokens, token_embeddings)
+        x, encoder_embedding, ft_embedding = self.forward_embedding(src_tokens, token_embeddings)
 
+        if ft_embedding is not None:
+            ft_embedding = ft_embedding.transpose(0, 1)
         # account for padding while computing the representation
         if has_pads:
             x = x * (1 - encoder_padding_mask.unsqueeze(-1).type_as(x))
@@ -528,7 +573,9 @@ class TransformerEncoder(FairseqEncoder):
         # encoder layers
         for layer in self.layers:
             x = layer(
-                x, encoder_padding_mask=encoder_padding_mask if has_pads else None
+                x, 
+                encoder_padding_mask=encoder_padding_mask if has_pads else None,
+                ft_emb=ft_embedding
             )
             if return_all_hiddens:
                 assert encoder_states is not None
