@@ -311,7 +311,10 @@ class Trainer(object):
                     return True
                 return False
             else:
-                if not p.requires_grad or (('embed' in n) and self.cfg.optimization.freeze_emb):
+                #if not p.requires_grad or (('embed' in n) and self.cfg.optimization.freeze_emb):
+                if not p.requires_grad:
+                    return False
+                if ('embed' in n) and self.cfg.optimization.freeze_emb:
                     return False
                 if 'layers.' in n:
                     for i in self.cfg.model.ft_layer:
@@ -320,7 +323,9 @@ class Trainer(object):
                             return False
                     if self.cfg.optimization.freeze_norm and ('layer_norm' in n):
                         return False
-                    return True
+                #print(n, p.requires_grad)
+                return True
+
         params = list(p for n, p in self.model.named_parameters() if check_param(n, p))
         params.extend(list(p for p in self.criterion.parameters() if p.requires_grad))
     
@@ -1449,6 +1454,27 @@ class Trainer(object):
             from fairseq.utils import xla_device_to_cpu
 
             return xla_device_to_cpu(data)
+
+    
+    def quantize(self, bits):
+
+        def minimax_quant(m, b):
+            x_min = m.min()
+            x_max = m.max()
+            int_min = 0
+            int_max = 2.0 ** b - 1
+            delta = (x_max - x_min) / int_max
+            zero_point = -(x_min / delta).round()
+            m_quant = (m / delta).round() + zero_point
+            m_quant = torch.clamp(m_quant, int_min, int_max)
+            m_dequant = (m_quant - zero_point) * delta
+            return m_dequant#, m_quant
+
+        for n, p in self.model.named_parameters():
+            if '_proj.weight' in n or 'fc1.weight' in n or 'fc2.weight' in n:
+                p.data = minimax_quant(p.detach(), bits)
+            
+
 
 
 def _catalog_shared_params(module, memo=None, prefix=""):

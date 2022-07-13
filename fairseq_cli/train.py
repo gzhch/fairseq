@@ -162,6 +162,12 @@ def main(cfg: FairseqConfig) -> None:
         import torch_xla.core.xla_model as xm
         xm.rendezvous("load_checkpoint")  # wait for all workers
 
+    # Quantize the pretrained weights with simple minmax uniform quantization
+    if True:
+        bits = 4
+        trainer.quantize(bits)
+        logging.info("Quantize the pretrained weights to {} bits".format(bits))
+
     max_epoch = cfg.optimization.max_epoch or math.inf
     lr = trainer.get_lr()
 
