@@ -1456,7 +1456,7 @@ class Trainer(object):
             return xla_device_to_cpu(data)
 
     
-    def quantize(self, bits):
+    def quantize(self):
 
         def minimax_quant(m, b):
             x_min = m.min()
@@ -1471,9 +1471,10 @@ class Trainer(object):
             return m_dequant#, m_quant
 
         for n, p in self.model.named_parameters():
-            if '_proj.weight' in n or 'fc1.weight' in n or 'fc2.weight' in n:
-                p.data = minimax_quant(p.detach(), bits)
-            
+            if self.cfg.optimization.qW != 32 and '_proj.weight' in n or 'fc1.weight' in n or 'fc2.weight' in n:
+                p.data = minimax_quant(p.detach(), self.cfg.optimization.qW)
+            elif self.cfg.optimization.qE != 32 and  'embed_tokens' in n:
+                p.data = minimax_quant(p.detach(), self.cfg.optimization.qE)
 
 
 
@@ -1509,3 +1510,4 @@ def _set_module_by_path(module, path, value):
     for name in path[:-1]:
         module = getattr(module, name)
     setattr(module, path[-1], value)
+

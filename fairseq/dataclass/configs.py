@@ -588,6 +588,25 @@ class OptimizationConfig(FairseqDataclass):
             "help": ""
         },
     )
+
+    qE: int = field(
+        default=32,
+        metadata={
+            "help": "quantization embedding"
+        },
+    )
+    qW: int = field(
+        default=32,
+        metadata={
+            "help": "quantization embedding"
+        },
+    )
+    qA: int = field(
+        default=32,
+        metadata={
+            "help": "quantization embedding"
+        },
+    )
     
 
 
@@ -1062,3 +1081,4 @@ class FairseqConfig(FairseqDataclass):
     scoring: Any = None
     bpe: Any = None
     tokenizer: Any = None
+

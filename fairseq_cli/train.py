@@ -164,9 +164,11 @@ def main(cfg: FairseqConfig) -> None:
 
     # Quantize the pretrained weights with simple minmax uniform quantization
     if True:
-        bits = 4
-        trainer.quantize(bits)
-        logging.info("Quantize the pretrained weights to {} bits".format(bits))
+        #bits = 8
+        trainer.quantize()
+        logging.info("weights to {} bits".format(cfg.optimization.qW))
+        logging.info("embedding to {} bits".format(cfg.optimization.qE))
+        logging.info("activation to {} bits".format(cfg.optimization.qA))
 
     max_epoch = cfg.optimization.max_epoch or math.inf
     lr = trainer.get_lr()
@@ -518,3 +520,4 @@ def cli_main(
 
 if __name__ == "__main__":
     cli_main()
+

@@ -15,9 +15,21 @@ def random_subnet(seed=1):
     return subnets
 
 
+def fullnet():
+    L = 24
+    n = 1024 + 1
+    names =  ['Q', 'K', 'V', 'O', 'FC1', 'FC2']
+    subnets = {k : [] for  k in names}
+    for layer in range(L):
+        for name in names:
+            n = 1024 if name != 'FC2'  else 4096
+            subnets[name].append(random.sample(range(n), n))
+    return subnets
+    
+
 def save_subnet(data, path):
     with open(path, 'wb') as f:
         pickle.dump(data, f)
 
-data = random_subnet(0)
-save_subnet(data, './subnet/r_0.pkl')
+data = fullnet()
+save_subnet(data, '../Data/subnet/fullnet.pkl')
